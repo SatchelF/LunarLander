@@ -5,8 +5,8 @@
         MainMenu,
         GamePlay,
         HighScores,
-        Help,
-        About,
+        Settings,
+        Credits,
         Exit
     }
 }
