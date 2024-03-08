@@ -23,6 +23,7 @@ namespace CS5410
         private int safeZoneEndX;   // X position of the end of the safe zone
         private const float LandingZonePadding = .5f; // To make the landing zone a bit larger than the lunar lander
 
+
         public override void loadContent(ContentManager contentManager)
         {
             m_font = contentManager.Load<SpriteFont>("Fonts/menu");
