@@ -59,19 +59,30 @@ namespace CS5410
         {
             GameStateEnum nextStateEnum = m_currentState.processInput(gameTime);
 
+            // Check if we are switching to the GamePlay state from another state
+            if (nextStateEnum == GameStateEnum.GamePlay && m_currentState != m_states[GameStateEnum.GamePlay])
+            {
+                // Reset the GamePlay state
+                GamePlayView gamePlayView = m_states[GameStateEnum.GamePlay] as GamePlayView;
+                gamePlayView.loadContent(this.Content);
+                // The above line will internally call InitializeNewGame method of GamePlayView
+            }
+
             // Special case for exiting the game
             if (nextStateEnum == GameStateEnum.Exit)
             {
                 Exit();
             }
-            else
+            else if (m_currentState != m_states[nextStateEnum])
             {
-                m_currentState.update(gameTime);
+                // Update current state
                 m_currentState = m_states[nextStateEnum];
+                m_currentState.update(gameTime);
             }
 
             base.Update(gameTime);
         }
+
 
         protected override void Draw(GameTime gameTime)
         {
