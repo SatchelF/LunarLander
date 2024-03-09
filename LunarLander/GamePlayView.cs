@@ -18,8 +18,8 @@ namespace CS5410
         private float m_landerRotation; // Rotation of the lunar lander
         private Vector2[] terrainPoints; // Points for the terrain
         private Random rand = new Random(); // Random number generator
-        private const float MaxTerrainHeight = 2.0f / 3.0f; // Maximum height for the terrain
-        private const float Roughness = 2.3f;
+        private const float MaxTerrainHeight = 1.0f / 3.0f; // Maximum height for the terrain
+        private const float Roughness = 2.5f;
         private int safeZoneStartX; // X position of the start of the safe zone
         private int safeZoneEndX;   // X position of the end of the safe zone
         private const float LandingZonePadding = .5f; // To make the landing zone a bit larger than the lunar lander
@@ -89,9 +89,9 @@ namespace CS5410
             // Draw the rest of the terrain as gray, to make it look filled
             foreach (var triangle in terrainTriangles)
             {
-                DrawLine(m_spriteBatch, triangle.Point1, triangle.Point2, Color.Gray); // Side lines in gray
-                DrawLine(m_spriteBatch, triangle.Point2, triangle.Point3, Color.Gray); // Bottom in gray
-                                                                                           // Not drawing the "top" of each triangle here since we want it in a different loop for white color
+                DrawLine(m_spriteBatch, triangle.Point1, triangle.Point2, Color.Black); // Side lines in gray
+                DrawLine(m_spriteBatch, triangle.Point2, triangle.Point3, Color.Black); // Bottom in gray
+                                                                                       // Not drawing the "top" of each triangle here since we want it in a different loop for white color
             }
 
             // Draw the top edges of the terrain in white
