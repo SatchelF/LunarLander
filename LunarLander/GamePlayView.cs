@@ -19,7 +19,7 @@ namespace CS5410
         private Vector2[] terrainPoints; // Points for the terrain
         private Random rand = new Random(); // Random number generator
         private const float MaxTerrainHeight = 2.0f / 3.0f; // Maximum height for the terrain
-        private const float Roughness = 2.0f;
+        private const float Roughness = 2.3f;
         private int safeZoneStartX; // X position of the start of the safe zone
         private int safeZoneEndX;   // X position of the end of the safe zone
         private const float LandingZonePadding = .5f; // To make the landing zone a bit larger than the lunar lander
@@ -86,17 +86,26 @@ namespace CS5410
             Vector2 origin = new Vector2(m_lunarLander.Width / 2f, m_lunarLander.Height / 2f); // Origin for rotation
             m_spriteBatch.Draw(m_lunarLander, m_landerPosition, null, Color.White, m_landerRotation, origin, 0.3f, SpriteEffects.None, 0f);
 
-            // Test: Draw the outlines of the terrain triangles
+            // Draw the rest of the terrain as gray, to make it look filled
             foreach (var triangle in terrainTriangles)
             {
-                // Draw edges for the triangle - this is a simplified example
-                DrawLine(m_spriteBatch, triangle.Point1, triangle.Point2, Color.White);
-                DrawLine(m_spriteBatch, triangle.Point2, triangle.Point3, Color.White);
-                DrawLine(m_spriteBatch, triangle.Point3, triangle.Point1, Color.White);
+                DrawLine(m_spriteBatch, triangle.Point1, triangle.Point2, Color.Gray); // Side lines in gray
+                DrawLine(m_spriteBatch, triangle.Point2, triangle.Point3, Color.Gray); // Bottom in gray
+                                                                                           // Not drawing the "top" of each triangle here since we want it in a different loop for white color
             }
+
+            // Draw the top edges of the terrain in white
+            for (int i = 0; i < terrainPoints.Length - 1; i++)
+            {
+                DrawLine(m_spriteBatch, terrainPoints[i], terrainPoints[i + 1], Color.White);
+            }
+
+            // Highlight the landing zone in green
+            DrawLine(m_spriteBatch, new Vector2(safeZoneStartX, terrainPoints[safeZoneStartX].Y), new Vector2(safeZoneEndX, terrainPoints[safeZoneEndX].Y), Color.Green);
 
             m_spriteBatch.End();
         }
+
 
 
         public override void update(GameTime gameTime)
@@ -132,6 +141,10 @@ namespace CS5410
             // Flatten the landing zone
             FlattenLandingZone();
 
+            for (int i = 0; i < terrainPoints.Length; i++)
+            {
+                terrainPoints[i].Y = MathHelper.Clamp(terrainPoints[i].Y, 0, m_graphics.PreferredBackBufferHeight);
+            }
 
             // Assuming terrainPoints have been generated...
             terrainTriangles.Clear();
@@ -193,7 +206,7 @@ namespace CS5410
             }
         }
 
-        private void DrawLine(SpriteBatch spriteBatch, Vector2 start, Vector2 end, Color color, int thickness = 3)
+        private void DrawLine(SpriteBatch spriteBatch, Vector2 start, Vector2 end, Color color, int thickness = 2)
         {
             Vector2 edge = end - start;
             float angle = (float)Math.Atan2(edge.Y, edge.X);
