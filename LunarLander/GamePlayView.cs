@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using LunarLander;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -22,6 +23,7 @@ namespace CS5410
         private int safeZoneStartX; // X position of the start of the safe zone
         private int safeZoneEndX;   // X position of the end of the safe zone
         private const float LandingZonePadding = .5f; // To make the landing zone a bit larger than the lunar lander
+        private List<Triangle> terrainTriangles = new List<Triangle>();
 
 
         public override void loadContent(ContentManager contentManager)
@@ -76,10 +78,6 @@ namespace CS5410
 
         public override void render(GameTime gameTime)
         {
-
-
-
-
             m_spriteBatch.Begin();
             // Draw the background covering the entire screen
             m_spriteBatch.Draw(m_background, new Rectangle(0, 0, m_graphics.PreferredBackBufferWidth, m_graphics.PreferredBackBufferHeight), Color.White);
@@ -88,21 +86,18 @@ namespace CS5410
             Vector2 origin = new Vector2(m_lunarLander.Width / 2f, m_lunarLander.Height / 2f); // Origin for rotation
             m_spriteBatch.Draw(m_lunarLander, m_landerPosition, null, Color.White, m_landerRotation, origin, 0.3f, SpriteEffects.None, 0f);
 
-
-
-
-            if (terrainPoints != null)
+            // Test: Draw the outlines of the terrain triangles
+            foreach (var triangle in terrainTriangles)
             {
-                for (int i = 0; i < terrainPoints.Length - 1; i++)
-                {
-                    DrawLine(m_spriteBatch, terrainPoints[i], terrainPoints[i + 1], Color.White);
-                }
+                // Draw edges for the triangle - this is a simplified example
+                DrawLine(m_spriteBatch, triangle.Point1, triangle.Point2, Color.White);
+                DrawLine(m_spriteBatch, triangle.Point2, triangle.Point3, Color.White);
+                DrawLine(m_spriteBatch, triangle.Point3, triangle.Point1, Color.White);
             }
-
-
 
             m_spriteBatch.End();
         }
+
 
         public override void update(GameTime gameTime)
         {
@@ -136,6 +131,22 @@ namespace CS5410
 
             // Flatten the landing zone
             FlattenLandingZone();
+
+
+            // Assuming terrainPoints have been generated...
+            terrainTriangles.Clear();
+            for (int i = 0; i < terrainPoints.Length - 1; i++)
+            {
+                Vector2 bottomLeft = new Vector2(terrainPoints[i].X, m_graphics.PreferredBackBufferHeight);
+                Vector2 bottomRight = new Vector2(terrainPoints[i + 1].X, m_graphics.PreferredBackBufferHeight);
+
+                // Create two triangles for each terrain segment to simulate a filled polygon
+                terrainTriangles.Add(new Triangle(terrainPoints[i], bottomLeft, terrainPoints[i + 1]));
+                terrainTriangles.Add(new Triangle(terrainPoints[i + 1], bottomLeft, bottomRight));
+            }
+            System.Diagnostics.Debug.WriteLine($"Generated {terrainTriangles.Count} terrain triangles.");
+
+
         }
 
         private void MidpointDisplacement(int leftIndex, int rightIndex, float displacement)
