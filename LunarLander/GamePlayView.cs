@@ -25,6 +25,9 @@ namespace CS5410
         private int numberOfLandingZones;
         private const float LandingZonePadding = .5f;
         private List<Triangle> terrainTriangles = new List<Triangle>();
+        private Vector2 m_velocity; // Velocity of the lander
+        private Vector2 m_gravity; // Gravity applied to the lander
+
 
         public override void loadContent(ContentManager contentManager)
         {
@@ -45,6 +48,8 @@ namespace CS5410
             int minY = 0;
             int minX = screenWidth / 6;
             int maxX = 5 * screenWidth / 6;
+            m_velocity = Vector2.Zero; // Start with no movement
+            m_gravity = new Vector2(0, 32.00f); // Downward gravity. Adjust as needed.
 
             int randomX = rand.Next(minX, maxX);
             int randomY = rand.Next(minY, maxY);
@@ -92,7 +97,7 @@ namespace CS5410
 
             for (int i = 0; i < numberOfLandingZones; i++)
             {
-                int safeZoneWidth = (int)(segmentWidth * LandingZonePadding);
+                int safeZoneWidth = (int)(segmentWidth * LandingZonePadding) / 2 ;
                 int safeZoneStartX = segmentWidth * (i + 1) - safeZoneWidth / 2;
                 int safeZoneEndX = safeZoneStartX + safeZoneWidth;
 
@@ -210,6 +215,32 @@ namespace CS5410
                     Color.Green, 3);
             }
 
+
+
+
+            Vector2 statusPosition = new Vector2(m_graphics.PreferredBackBufferWidth - 500, 50);
+
+            // For now, we can just leave the fuel at a constant value since we're not decreasing it yet
+            int fuel = 100; // Replace with actual fuel value later
+            string fuelText = $"Fuel: {fuel}";
+            Color fuelColor = fuel > 0 ? Color.Green : Color.White;
+
+            // Assume these values for now, replace with actual vertical speed and angle later
+            float verticalSpeed = 0; // Replace with actual vertical speed value later
+            string verticalSpeedText = $"Vertical Speed: {verticalSpeed} m/s";
+            Color verticalSpeedColor = verticalSpeed > 2 ? Color.White : Color.Green;
+
+            float angle = m_landerRotation; // Replace with actual angle value later
+            string angleText = $"Angle: {angle}";
+            Color angleColor = (angle > 5 && angle < 355) ? Color.White : Color.Green;
+
+            // Draw the status text
+            m_spriteBatch.DrawString(m_font, fuelText, statusPosition, fuelColor);
+            statusPosition.Y += m_font.LineSpacing; // Move down for next line
+            m_spriteBatch.DrawString(m_font, verticalSpeedText, statusPosition, verticalSpeedColor);
+            statusPosition.Y += m_font.LineSpacing; // Move down for next line
+            m_spriteBatch.DrawString(m_font, angleText, statusPosition, angleColor);
+
             m_spriteBatch.End();
         }
 
@@ -242,10 +273,28 @@ namespace CS5410
 
         public override void update(GameTime gameTime)
         {
-            // Implement game logic updates here
+            float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
+
+            // Apply gravity to the lander's velocity
+            m_velocity += m_gravity * deltaTime;
+
+            // Update the lander's position
+            m_landerPosition += m_velocity * deltaTime;
+
+            // Debugging statement to check values
+            System.Diagnostics.Debug.WriteLine($"Velocity: {m_velocity}, Position: {m_landerPosition}");
+
+            // Check if the lander has fallen off the screen
+            if (m_landerPosition.Y > m_graphics.PreferredBackBufferHeight)
+            {
+                // Reset the game or handle the lander's crash here
+                InitializeNewGame(); // For now, just reset the game
+            }
         }
 
-        
+
+
+
 
         public void SetNumberOfLandingZones(int level)
         {

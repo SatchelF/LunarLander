@@ -77,11 +77,14 @@ namespace CS5410
             {
                 // Update current state
                 m_currentState = m_states[nextStateEnum];
-                m_currentState.update(gameTime);
             }
+
+            // Always update the current state regardless of any transitions
+            m_currentState.update(gameTime);
 
             base.Update(gameTime);
         }
+
 
 
         protected override void Draw(GameTime gameTime)
