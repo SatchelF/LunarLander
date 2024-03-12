@@ -27,6 +27,10 @@ namespace CS5410
         private List<Triangle> terrainTriangles = new List<Triangle>();
         private Vector2 m_velocity; // Velocity of the lander
         private Vector2 m_gravity; // Gravity applied to the lander
+        private const float Thrust = -100f; // Thrust power
+        private const float RotationSpeed = 0.05f; // Rotation speed
+        private const int MaxFuel = 300; // Maximum fuel capacity
+        private int m_fuel; // Current fuel amount
 
 
         public override void loadContent(ContentManager contentManager)
@@ -36,7 +40,6 @@ namespace CS5410
             m_lunarLander = contentManager.Load<Texture2D>("Images/lunar_lander");
             m_pixel = new Texture2D(m_graphics.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
             m_pixel.SetData(new[] { Color.White });
-
             InitializeNewGame();
         }
 
@@ -54,6 +57,7 @@ namespace CS5410
             int randomX = rand.Next(minX, maxX);
             int randomY = rand.Next(minY, maxY);
             m_landerPosition = new Vector2(randomX, randomY);
+            m_fuel = MaxFuel; // Set initial fuel to maximum capacity
 
             m_landerRotation = rand.Next(2) == 0 ? MathHelper.PiOver2 : -MathHelper.PiOver2;
 
@@ -62,9 +66,34 @@ namespace CS5410
 
         public override GameStateEnum processInput(GameTime gameTime)
         {
-            if (Keyboard.GetState().IsKeyDown(Keys.Escape))
+            var keyboardState = Keyboard.GetState();
+
+            if (keyboardState.IsKeyDown(Keys.Escape))
             {
                 return GameStateEnum.MainMenu;
+            }
+
+            // Rotate Left
+            if (keyboardState.IsKeyDown(Keys.Left))
+            {
+                m_landerRotation -= RotationSpeed;
+            }
+
+            // Rotate Right
+            if (keyboardState.IsKeyDown(Keys.Right))
+            {
+                m_landerRotation += RotationSpeed;
+            }
+
+            if (keyboardState.IsKeyDown(Keys.Up) && m_fuel > 0)
+            {
+                // Reduce fuel
+                m_fuel -= 1;
+
+                Vector2 thrustDirection = new Vector2(-(float)Math.Sin(m_landerRotation), (float)Math.Cos(m_landerRotation));
+
+                // Apply thrust in the calculated direction
+                m_velocity += thrustDirection * Thrust * (float)gameTime.ElapsedGameTime.TotalSeconds;
             }
 
             return GameStateEnum.GamePlay;
@@ -220,10 +249,9 @@ namespace CS5410
 
             Vector2 statusPosition = new Vector2(m_graphics.PreferredBackBufferWidth - 500, 50);
 
-            // For now, we can just leave the fuel at a constant value since we're not decreasing it yet
-            int fuel = 100; // Replace with actual fuel value later
-            string fuelText = $"Fuel: {fuel}";
-            Color fuelColor = fuel > 0 ? Color.Green : Color.White;
+
+            string fuelText = $"Fuel: {m_fuel / 3 }";
+            Color fuelColor = m_fuel > 0 ? Color.Green : Color.White;
 
             // Assume these values for now, replace with actual vertical speed and angle later
             float verticalSpeed = 0; // Replace with actual vertical speed value later
