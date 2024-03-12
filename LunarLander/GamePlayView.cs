@@ -92,6 +92,26 @@ namespace CS5410
             // Implement game logic updates here
         }
 
+        private void FlattenLandingZone()
+        {
+            float minY = float.MaxValue;
+
+            // Find the highest Y value in the landing zone, which is actually the lowest point on the screen.
+            for (int i = safeZoneStartX; i <= safeZoneEndX; i++)
+            {
+                if (terrainPoints[i].Y < minY)
+                {
+                    minY = terrainPoints[i].Y;
+                }
+            }
+
+            // Set all points in the safe zone to this Y value.
+            for (int i = safeZoneStartX; i <= safeZoneEndX; i++)
+            {
+                terrainPoints[i] = new Vector2(terrainPoints[i].X, minY);
+            }
+        }
+
         private void GenerateTerrain()
         {
             int screenWidth = m_graphics.PreferredBackBufferWidth;
@@ -108,26 +128,33 @@ namespace CS5410
             terrainPoints[screenWidth - 1] = new Vector2(screenWidth - 1, screenHeight - rightHeight);
 
             MidpointDisplacement(0, screenWidth - 1, maxTerrainHeight);
+
             safeZoneStartX = rand.Next(landerWidth, screenWidth - landerWidth - safeZoneWidth);
             safeZoneEndX = safeZoneStartX + safeZoneWidth;
-            FlattenLandingZone();
 
-            for (int i = 0; i < terrainPoints.Length; i++)
+            FlattenLandingZone();
+            float threshold = screenHeight * 0.1f; // Threshold for landing zone visibility.
+            for (int i = safeZoneStartX; i <= safeZoneEndX; i++)
             {
-                terrainPoints[i].Y = MathHelper.Clamp(terrainPoints[i].Y, 0, m_graphics.PreferredBackBufferHeight);
+                if (terrainPoints[i].Y > screenHeight - threshold)
+                {
+                    terrainPoints[i].Y = screenHeight - threshold;
+                }
             }
 
             terrainTriangles.Clear();
             for (int i = 0; i < terrainPoints.Length - 1; i++)
             {
-                Vector2 bottomLeft = new Vector2(terrainPoints[i].X, m_graphics.PreferredBackBufferHeight);
-                Vector2 bottomRight = new Vector2(terrainPoints[i + 1].X, m_graphics.PreferredBackBufferHeight);
+                Vector2 bottomLeft = new Vector2(terrainPoints[i].X, screenHeight);
+                Vector2 bottomRight = new Vector2(terrainPoints[i + 1].X, screenHeight);
 
                 terrainTriangles.Add(new Triangle(terrainPoints[i], bottomLeft, terrainPoints[i + 1]));
                 terrainTriangles.Add(new Triangle(terrainPoints[i + 1], bottomLeft, bottomRight));
             }
+
             System.Diagnostics.Debug.WriteLine($"Generated {terrainTriangles.Count} terrain triangles.");
         }
+
 
         private void MidpointDisplacement(int leftIndex, int rightIndex, float displacement)
         {
@@ -152,22 +179,7 @@ namespace CS5410
             return (float)(rand.NextDouble() - 0.5) * Roughness * length;
         }
 
-        private void FlattenLandingZone()
-        {
-            float averageHeight = 0f;
-            int count = 0;
-            for (int i = safeZoneStartX; i <= safeZoneEndX; i++)
-            {
-                averageHeight += terrainPoints[i].Y;
-                count++;
-            }
-            averageHeight /= count;
-
-            for (int i = safeZoneStartX; i <= safeZoneEndX; i++)
-            {
-                terrainPoints[i] = new Vector2(i, averageHeight);
-            }
-        }
+        
 
         private void DrawLine(SpriteBatch spriteBatch, Vector2 start, Vector2 end, Color color, int thickness = 2)
         {
