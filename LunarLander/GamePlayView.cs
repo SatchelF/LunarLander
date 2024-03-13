@@ -32,6 +32,8 @@ namespace CS5410
         private const int MaxFuel = 300; // Maximum fuel capacity
         private int m_fuel; // Current fuel amount
         private float m_verticalSpeed; // Add a member variable to store the vertical speed
+        private bool GameOver;
+        private bool successfulLanding;
 
 
         public override void loadContent(ContentManager contentManager)
@@ -56,6 +58,8 @@ namespace CS5410
             int maxX = 5 * screenWidth / 6;
             m_velocity = Vector2.Zero; // Start with no movement
             m_gravity = new Vector2(0, 20.00f); // Downward gravity. Adjust as needed.
+            GameOver = false;
+            successfulLanding = false;
 
             int randomX = rand.Next(minX, maxX);
             int randomY = rand.Next(minY, maxY);
@@ -70,6 +74,17 @@ namespace CS5410
         public override GameStateEnum processInput(GameTime gameTime)
         {
             var keyboardState = Keyboard.GetState();
+
+
+            if (GameOver)
+            {
+                if (keyboardState.IsKeyDown(Keys.Enter))
+                {
+                    InitializeNewGame(); // Restart the game
+                    GameOver = false; // Reset the game over flag
+                }
+                return GameStateEnum.GamePlay; // Keep the game state on GamePlay
+            }
 
             if (keyboardState.IsKeyDown(Keys.Escape))
             {
@@ -217,9 +232,13 @@ namespace CS5410
             m_spriteBatch.Draw(m_background, new Rectangle(0, 0, m_graphics.PreferredBackBufferWidth, m_graphics.PreferredBackBufferHeight), Color.White);
 
             // Draw the lander...
-            Vector2 origin = new Vector2(m_lunarLander.Width / 2f, m_lunarLander.Height / 2f);
-            m_spriteBatch.Draw(m_lunarLander, m_landerPosition, null, Color.White, m_landerRotation, origin, 0.3f, SpriteEffects.None, 0f);
 
+            if (!GameOver)
+            {
+                Vector2 origin = new Vector2(m_lunarLander.Width / 2f, m_lunarLander.Height / 2f);
+                m_spriteBatch.Draw(m_lunarLander, m_landerPosition, null, Color.White, m_landerRotation, origin, 0.3f, SpriteEffects.None, 0f);
+            }
+           
             // Draw the filled terrain with gray color
             for (int i = 0; i < terrainPoints.Length - 1; i++)
             {
@@ -271,6 +290,14 @@ namespace CS5410
             statusPosition.Y += m_font.LineSpacing; // Move down for next line
             m_spriteBatch.DrawString(m_font, angleText, statusPosition, angleColor);
 
+            if (GameOver)
+            {
+                string gameOverText = "Mission Failed - Push Enter to Start Another Game";
+                Vector2 size = m_font.MeasureString(gameOverText);
+                Vector2 position = new Vector2((m_graphics.PreferredBackBufferWidth - size.X) / 2, (m_graphics.PreferredBackBufferHeight - size.Y) / 2);
+                m_spriteBatch.DrawString(m_font, gameOverText, position, Color.Red);
+            }
+
             m_spriteBatch.End();
         }
 
@@ -303,6 +330,16 @@ namespace CS5410
 
         public override void update(GameTime gameTime)
         {
+            // Collision detection
+            for (int i = 0; i < terrainPoints.Length - 1; i++)
+            {
+                if (LineCircleIntersection(terrainPoints[i], terrainPoints[i + 1], m_landerPosition, 30)) // Assuming a small radius for simplicity
+                {
+                    ShowGameOver();
+                    break;
+                }
+            }
+
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
             // Apply gravity to the lander's velocity
@@ -323,6 +360,11 @@ namespace CS5410
                 // Reset the game or handle the lander's crash here
                 InitializeNewGame(); // For now, just reset the game
             }
+
+
+
+
+            
         }
 
 
@@ -368,8 +410,33 @@ namespace CS5410
             return (float)(rand.NextDouble() - 0.5) * Roughness * length;
         }
 
-        
 
-        
+        private bool LineCircleIntersection(Vector2 pt1, Vector2 pt2, Vector2 circleCenter, float circleRadius)
+        {
+            Vector2 v1 = pt2 - pt1;
+            Vector2 v2 = pt1 - circleCenter;
+            float b = -2 * (v1.X * v2.X + v1.Y * v2.Y);
+            float c = 2 * (v1.X * v1.X + v1.Y * v1.Y);
+            float d = b * b - 2 * c * (v2.X * v2.X + v2.Y * v2.Y - circleRadius * circleRadius);
+            if (d < 0)
+            {
+                return false;
+            }
+            d = (float)Math.Sqrt(d);
+            float u1 = (b - d) / c;
+            float u2 = (b + d) / c;
+            return (u1 <= 1 && u1 >= 0) || (u2 <= 1 && u2 >= 0);
+        }
+
+        private void ShowGameOver()
+        {
+            GameOver = true;
+        }
+
+
+
+
+
+
     }
 }
