@@ -31,12 +31,15 @@ namespace CS5410
         private const float RotationSpeed = 0.05f; // Rotation speed
         private const int MaxFuel = 300; // Maximum fuel capacity
         private int m_fuel; // Current fuel amount
+        private float m_verticalSpeed; // Add a member variable to store the vertical speed
 
 
         public override void loadContent(ContentManager contentManager)
         {
             m_font = contentManager.Load<SpriteFont>("Fonts/menu");
-            m_background = contentManager.Load<Texture2D>("Images/Space_Background");
+            int randomBackgroundIndex = rand.Next(2, 7); // Generate a random index from 2 to 6 (inclusive)
+            string backgroundPath = $"Images/Space_Background{randomBackgroundIndex}";
+            m_background = contentManager.Load<Texture2D>(backgroundPath);
             m_lunarLander = contentManager.Load<Texture2D>("Images/lunar_lander");
             m_pixel = new Texture2D(m_graphics.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
             m_pixel.SetData(new[] { Color.White });
@@ -52,7 +55,7 @@ namespace CS5410
             int minX = screenWidth / 6;
             int maxX = 5 * screenWidth / 6;
             m_velocity = Vector2.Zero; // Start with no movement
-            m_gravity = new Vector2(0, 32.00f); // Downward gravity. Adjust as needed.
+            m_gravity = new Vector2(0, 20.00f); // Downward gravity. Adjust as needed.
 
             int randomX = rand.Next(minX, maxX);
             int randomY = rand.Next(minY, maxY);
@@ -254,9 +257,8 @@ namespace CS5410
             Color fuelColor = m_fuel > 0 ? Color.Green : Color.White;
 
             // Assume these values for now, replace with actual vertical speed and angle later
-            float verticalSpeed = 0; // Replace with actual vertical speed value later
-            string verticalSpeedText = $"Vertical Speed: {verticalSpeed} m/s";
-            Color verticalSpeedColor = verticalSpeed > 2 ? Color.White : Color.Green;
+            string verticalSpeedText = $"Vertical Speed: {m_verticalSpeed} m/s";
+            Color verticalSpeedColor = m_verticalSpeed > 2 ? Color.White : Color.Green;
 
             float angle = m_landerRotation; // Replace with actual angle value later
             string angleText = $"Angle: {angle}";
@@ -308,6 +310,9 @@ namespace CS5410
 
             // Update the lander's position
             m_landerPosition += m_velocity * deltaTime;
+
+            // Calculate the vertical speed
+            m_verticalSpeed = m_velocity.Y / 2; // Store the vertical speed in the member variable
 
             // Debugging statement to check values
             System.Diagnostics.Debug.WriteLine($"Velocity: {m_velocity}, Position: {m_landerPosition}");
