@@ -28,7 +28,7 @@ namespace CS5410
         private Vector2 m_velocity; // Velocity of the lander
         private Vector2 m_gravity; // Gravity applied to the lander
         private const float Thrust = -100f; // Thrust power
-        private const float RotationSpeed = 0.05f; // Rotation speed
+        private const float RotationSpeed = 1.0f; // Rotation speed
         private const int MaxFuel = 300; // Maximum fuel capacity
         private int m_fuel; // Current fuel amount
         private float m_verticalSpeed; // Add a member variable to store the vertical speed
@@ -57,7 +57,7 @@ namespace CS5410
             int minX = screenWidth / 6;
             int maxX = 5 * screenWidth / 6;
             m_velocity = Vector2.Zero; // Start with no movement
-            m_gravity = new Vector2(0, 20.00f); // Downward gravity. Adjust as needed.
+            m_gravity = new Vector2(0, 10.00f); // Downward gravity. Adjust as needed.
             GameOver = false;
             successfulLanding = false;
 
@@ -91,16 +91,17 @@ namespace CS5410
                 return GameStateEnum.MainMenu;
             }
 
-            // Rotate Left
             if (keyboardState.IsKeyDown(Keys.Left))
             {
-                m_landerRotation -= RotationSpeed;
+                m_landerRotation -= RotationSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds;
+                m_landerRotation = (m_landerRotation + MathHelper.TwoPi) % MathHelper.TwoPi;
             }
 
             // Rotate Right
             if (keyboardState.IsKeyDown(Keys.Right))
             {
-                m_landerRotation += RotationSpeed;
+                m_landerRotation += RotationSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds;
+                m_landerRotation = (m_landerRotation + MathHelper.TwoPi) % MathHelper.TwoPi;
             }
 
             if (keyboardState.IsKeyDown(Keys.Up) && m_fuel > 0)
@@ -276,12 +277,15 @@ namespace CS5410
             Color fuelColor = m_fuel > 0 ? Color.Green : Color.White;
 
             // Assume these values for now, replace with actual vertical speed and angle later
-            string verticalSpeedText = $"Vertical Speed: {m_verticalSpeed} m/s";
+            string verticalSpeedText = $"Vertical Speed: {m_verticalSpeed / 10 } m/s";
             Color verticalSpeedColor = m_verticalSpeed > 2 ? Color.White : Color.Green;
 
-            float angle = m_landerRotation; // Replace with actual angle value later
-            string angleText = $"Angle: {angle}";
+            float angle = (MathHelper.ToDegrees(m_landerRotation) + 360) % 360;
+            string angleText = $"Angle: {angle}"; // Updated angle text
             Color angleColor = (angle > 5 && angle < 355) ? Color.White : Color.Green;
+
+            
+            
 
             // Draw the status text
             m_spriteBatch.DrawString(m_font, fuelText, statusPosition, fuelColor);
@@ -290,12 +294,26 @@ namespace CS5410
             statusPosition.Y += m_font.LineSpacing; // Move down for next line
             m_spriteBatch.DrawString(m_font, angleText, statusPosition, angleColor);
 
+            Vector2 centerScreen = new Vector2(m_graphics.PreferredBackBufferWidth / 2, m_graphics.PreferredBackBufferHeight / 2);
+            string messageText = "";
+            Color messageColor = Color.White;
+
             if (GameOver)
             {
-                string gameOverText = "Mission Failed - Push Enter to Start Another Game";
-                Vector2 size = m_font.MeasureString(gameOverText);
-                Vector2 position = new Vector2((m_graphics.PreferredBackBufferWidth - size.X) / 2, (m_graphics.PreferredBackBufferHeight - size.Y) / 2);
-                m_spriteBatch.DrawString(m_font, gameOverText, position, Color.Red);
+                if (successfulLanding)
+                {
+                    messageText = "Mission Success - Press Enter to Continue";
+                    messageColor = Color.Green;
+                }
+                else
+                {
+                    messageText = "Mission Failed - Press Enter to Restart";
+                    messageColor = Color.Red;
+                }
+
+                Vector2 textSize = m_font.MeasureString(messageText);
+                Vector2 textPosition = centerScreen - textSize / 2;
+                m_spriteBatch.DrawString(m_font, messageText, textPosition, messageColor);
             }
 
             m_spriteBatch.End();
@@ -330,16 +348,6 @@ namespace CS5410
 
         public override void update(GameTime gameTime)
         {
-            // Collision detection
-            for (int i = 0; i < terrainPoints.Length - 1; i++)
-            {
-                if (LineCircleIntersection(terrainPoints[i], terrainPoints[i + 1], m_landerPosition, 30)) // Assuming a small radius for simplicity
-                {
-                    ShowGameOver();
-                    break;
-                }
-            }
-
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
             // Apply gravity to the lander's velocity
@@ -348,17 +356,35 @@ namespace CS5410
             // Update the lander's position
             m_landerPosition += m_velocity * deltaTime;
 
-            // Calculate the vertical speed
-            m_verticalSpeed = m_velocity.Y / 2; // Store the vertical speed in the member variable
+            // Calculate the vertical speed for display (adjust as necessary for your logic)
+            m_verticalSpeed = m_velocity.Y;
 
-            // Debugging statement to check values
-            System.Diagnostics.Debug.WriteLine($"Velocity: {m_velocity}, Position: {m_landerPosition}");
+            // Existing collision and game state update logic...
 
+            // Modified collision detection to include safe landing check
+            for (int i = 0; i < terrainPoints.Length - 1; i++)
+            {
+                if (LineCircleIntersection(terrainPoints[i], terrainPoints[i + 1], m_landerPosition, 30)) // Assuming a small radius for simplicity
+                {
+                    if (CheckForSafeLanding(m_landerPosition))
+                    {
+                        // Handle successful landing
+                        successfulLanding = true;
+                        GameOver = true; // Or handle as appropriate for your game
+                        // Optionally trigger success actions here
+                    }
+                    else
+                    {
+                        // Handle crash
+                        ShowGameOver();
+                    }
+                    break;
+                }
+            }
             // Check if the lander has fallen off the screen
             if (m_landerPosition.Y > m_graphics.PreferredBackBufferHeight)
             {
-                // Reset the game or handle the lander's crash here
-                InitializeNewGame(); // For now, just reset the game
+                ShowGameOver();
             }
 
 
@@ -433,10 +459,36 @@ namespace CS5410
             GameOver = true;
         }
 
+        private bool CheckForSafeLanding(Vector2 collisionPoint)
+        {
+            // Check if within a safe zone
+            bool isInSafeZone = false;
+            for (int i = 0; i < safeZoneStartXs.Count; i++)
+            {
+                if (collisionPoint.X >= safeZoneStartXs[i] && collisionPoint.X <= safeZoneEndXs[i])
+                {
+                    isInSafeZone = true;
+                    break;
+                }
+            }
 
+            // Check the vertical speed is less than 2 m/s
+            bool isSpeedSafe = Math.Abs(m_velocity.Y) < 20;
 
+            // Check the lander's angle is within 5 degrees of vertical
+            float angleDegrees = MathHelper.ToDegrees(m_landerRotation) % 360;
+            if (angleDegrees < 0) angleDegrees += 360; // Normalize angle to 0-360 range
+            bool isAngleSafe = angleDegrees <= 5 || angleDegrees >= 355;
 
+            // Checks for vertical speed remain the same...
 
-
+            return isInSafeZone && isSpeedSafe && isAngleSafe;
+        }
     }
+
+
+    
+
+
 }
+
