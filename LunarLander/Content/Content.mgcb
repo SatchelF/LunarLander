@@ -111,3 +111,21 @@
 /processorParam:TextureFormat=Color
 /build:Images/Space_Background6.png
 
+#begin lander_explosion.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:lander_explosion.wav
+
+#begin lander_thrust (2).wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:lander_thrust (2).wav
+
+#begin lander_thrust.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:lander_thrust.wav
+

@@ -1,5 +1,6 @@
 ﻿using LunarLander;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -34,6 +35,9 @@ namespace CS5410
         private float m_verticalSpeed; // Add a member variable to store the vertical speed
         private bool GameOver;
         private bool successfulLanding;
+        private SoundEffect thrustSound;
+        private SoundEffect destructionSound;
+        private bool explosionSoundPlayed;
 
 
         public override void loadContent(ContentManager contentManager)
@@ -43,6 +47,10 @@ namespace CS5410
             string backgroundPath = $"Images/Space_Background{randomBackgroundIndex}";
             m_background = contentManager.Load<Texture2D>(backgroundPath);
             m_lunarLander = contentManager.Load<Texture2D>("Images/lunar_lander");
+            destructionSound = contentManager.Load<SoundEffect>("lander_explosion");
+            SoundEffect thrustSoundEffect = contentManager.Load<SoundEffect>("lander_thrust");
+            SoundEffectInstance thrustSoundInstance = thrustSoundEffect.CreateInstance();
+            thrustSoundInstance.IsLooped = true;
             m_pixel = new Texture2D(m_graphics.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
             m_pixel.SetData(new[] { Color.White });
             InitializeNewGame();
@@ -55,6 +63,7 @@ namespace CS5410
             int maxY = screenHeight / 5;
             int minY = 0;
             int minX = screenWidth / 6;
+            explosionSoundPlayed = false;
             int maxX = 5 * screenWidth / 6;
             m_velocity = Vector2.Zero; // Start with no movement
             m_gravity = new Vector2(0, 10.00f); // Downward gravity. Adjust as needed.
@@ -107,6 +116,7 @@ namespace CS5410
             if (keyboardState.IsKeyDown(Keys.Up) && m_fuel > 0)
             {
                 // Reduce fuel
+                //thrustSound.Play();
                 m_fuel -= 1;
 
                 Vector2 thrustDirection = new Vector2(-(float)Math.Sin(m_landerRotation), (float)Math.Cos(m_landerRotation));
@@ -278,7 +288,7 @@ namespace CS5410
 
             // Assume these values for now, replace with actual vertical speed and angle later
             string verticalSpeedText = $"Vertical Speed: {m_verticalSpeed / 10 } m/s";
-            Color verticalSpeedColor = m_verticalSpeed > 2 ? Color.White : Color.Green;
+            Color verticalSpeedColor = m_verticalSpeed > 20 ? Color.White : Color.Green;
 
             float angle = (MathHelper.ToDegrees(m_landerRotation) + 360) % 360;
             string angleText = $"Angle: {angle}"; // Updated angle text
@@ -457,6 +467,11 @@ namespace CS5410
         private void ShowGameOver()
         {
             GameOver = true;
+            if (!explosionSoundPlayed && !successfulLanding)
+            {
+                destructionSound.Play();
+                explosionSoundPlayed = true;
+            }
         }
 
         private bool CheckForSafeLanding(Vector2 collisionPoint)
