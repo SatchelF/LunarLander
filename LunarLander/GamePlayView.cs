@@ -35,7 +35,8 @@ namespace CS5410
         private float m_verticalSpeed; // Add a member variable to store the vertical speed
         private bool GameOver;
         private bool successfulLanding;
-        private SoundEffect thrustSound;
+        private SoundEffect thrustSound; // Sound effect for the thruster
+        private SoundEffectInstance thrustSoundInstance; // To control playback of the thruster sound
         private SoundEffect destructionSound;
         private bool explosionSoundPlayed;
 
@@ -43,13 +44,13 @@ namespace CS5410
         public override void loadContent(ContentManager contentManager)
         {
             m_font = contentManager.Load<SpriteFont>("Fonts/menu");
-            int randomBackgroundIndex = rand.Next(2, 7); // Generate a random index from 2 to 6 (inclusive)
+            int randomBackgroundIndex = rand.Next(2, 7);
             string backgroundPath = $"Images/Space_Background{randomBackgroundIndex}";
             m_background = contentManager.Load<Texture2D>(backgroundPath);
             m_lunarLander = contentManager.Load<Texture2D>("Images/lunar_lander");
             destructionSound = contentManager.Load<SoundEffect>("lander_explosion");
-            SoundEffect thrustSoundEffect = contentManager.Load<SoundEffect>("lander_thrust");
-            SoundEffectInstance thrustSoundInstance = thrustSoundEffect.CreateInstance();
+            thrustSound = contentManager.Load<SoundEffect>("lunar_booster"); 
+            thrustSoundInstance = thrustSound.CreateInstance();
             thrustSoundInstance.IsLooped = true;
             m_pixel = new Texture2D(m_graphics.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
             m_pixel.SetData(new[] { Color.White });
@@ -115,14 +116,22 @@ namespace CS5410
 
             if (keyboardState.IsKeyDown(Keys.Up) && m_fuel > 0)
             {
-                // Reduce fuel
-                //thrustSound.Play();
+                if (thrustSoundInstance.State != SoundState.Playing)
+                {
+                    thrustSoundInstance.Play(); // Play the sound only if not already playing
+                }
+
                 m_fuel -= 1;
 
                 Vector2 thrustDirection = new Vector2(-(float)Math.Sin(m_landerRotation), (float)Math.Cos(m_landerRotation));
-
-                // Apply thrust in the calculated direction
                 m_velocity += thrustDirection * Thrust * (float)gameTime.ElapsedGameTime.TotalSeconds;
+            }
+            else
+            {
+                if (thrustSoundInstance.State == SoundState.Playing)
+                {
+                    thrustSoundInstance.Stop(); // Stop the sound if the up key is released or fuel is depleted
+                }
             }
 
             return GameStateEnum.GamePlay;

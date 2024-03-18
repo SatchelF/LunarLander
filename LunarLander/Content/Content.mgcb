@@ -129,3 +129,9 @@
 /processorParam:Quality=Best
 /build:lander_thrust.wav
 
+#begin lunar_booster.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:lunar_booster.wav
+
