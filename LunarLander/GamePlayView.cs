@@ -40,6 +40,10 @@ namespace CS5410
         private SoundEffect destructionSound;
         private bool explosionSoundPlayed;
         private int currentLevel = 1; // Track the current level
+        private float countdownTimer = 3.0f; // 3 seconds countdown
+        private bool showCountdown = true; // Flag to control countdown display
+        private bool showVictoryMessage = false; // Flag to control victory message display
+
 
 
         public override void loadContent(ContentManager contentManager)
@@ -71,6 +75,8 @@ namespace CS5410
             m_gravity = new Vector2(0, 10.00f); // Downward gravity. Adjust as needed.
             GameOver = false;
             successfulLanding = false;
+            showCountdown = false; // Make sure countdown does not start at the beginning
+            countdownTimer = 3.0f; // Reset for when we do need it
 
             int randomX = rand.Next(minX, maxX);
             int randomY = rand.Next(minY, maxY);
@@ -86,6 +92,10 @@ namespace CS5410
         {
             var keyboardState = Keyboard.GetState();
 
+            if (keyboardState.IsKeyDown(Keys.Escape))
+            {
+                return GameStateEnum.MainMenu;
+            }
 
             if (GameOver)
             {
@@ -105,10 +115,7 @@ namespace CS5410
                 return GameStateEnum.GamePlay; // Keep the game state on GamePlay
             }
 
-            if (keyboardState.IsKeyDown(Keys.Escape))
-            {
-                return GameStateEnum.MainMenu;
-            }
+            
 
             if (keyboardState.IsKeyDown(Keys.Left))
             {
@@ -332,11 +339,22 @@ namespace CS5410
 
             if (GameOver)
             {
-                if (successfulLanding)
+                
+
+                if (successfulLanding && currentLevel == 2)
+                {
+                    messageText = "YOU WIN - Press Enter to Restart or ESC for new game ";
+                    messageColor = Color.Goldenrod;
+                }
+
+
+                else if (successfulLanding)
                 {
                     messageText = "Mission Success - Press Enter to Continue ";
                     messageColor = Color.Green;
                 }
+
+
                 else
                 {
                     messageText = "Mission Failed - Press Enter to Restart";
@@ -347,6 +365,17 @@ namespace CS5410
                 Vector2 textPosition = centerScreen - textSize / 2;
                 m_spriteBatch.DrawString(m_font, messageText, textPosition, messageColor);
             }
+
+
+            if (showCountdown)
+            {
+                // Display countdown
+                string countdownText = Math.Ceiling(countdownTimer).ToString();
+                Vector2 countdownPosition = new Vector2(m_graphics.PreferredBackBufferWidth / 2, m_graphics.PreferredBackBufferHeight / 2 + 100);
+                // Adjust the position as needed
+                m_spriteBatch.DrawString(m_font, countdownText, countdownPosition, Color.White);
+            }
+            
 
             m_spriteBatch.End();
         }
@@ -391,9 +420,21 @@ namespace CS5410
             // Calculate the vertical speed for display (adjust as necessary for your logic)
             m_verticalSpeed = m_velocity.Y;
 
-            // Existing collision and game state update logic...
+            if (showCountdown && countdownTimer > 0)
+            {
+                countdownTimer -= (float)gameTime.ElapsedGameTime.TotalSeconds;
+                if (countdownTimer <= 0)
+                {
+                    showCountdown = false;
+                    if (currentLevel == 1 && successfulLanding)
+                    {
+                        currentLevel = 2; // Move to next level after countdown
+                        InitializeNewGame();
+                    }
+                }
+                return; // Skip other updates during countdown
+            }
 
-            // Modified collision detection to include safe landing check
             for (int i = 0; i < terrainPoints.Length - 1; i++)
             {
                 if (LineCircleIntersection(terrainPoints[i], terrainPoints[i + 1], m_landerPosition, 30)) // Assuming a small radius for simplicity
@@ -487,14 +528,27 @@ namespace CS5410
 
         private void ShowGameOver()
         {
+
+
+            if (thrustSoundInstance.State == SoundState.Playing)
+            {
+                thrustSoundInstance.Stop();
+            }
+
             GameOver = true;
             if (successfulLanding)
             {
                 if (currentLevel == 1)
                 {
-                    currentLevel++; // Move to next level
-                    InitializeNewGame(); // Initialize the next level
-                    GameOver = false; // Reset the game over flag
+                    // Transition from Level 1 to 2 with a countdown
+                    showCountdown = true;
+                    countdownTimer = 3.0f;
+                }
+                else if (currentLevel == 2)
+                {
+                    // After completing Level 2, show victory message without a countdown
+                    showVictoryMessage = true;
+                    // Do not automatically reset or proceed; wait for player input
                 }
             }
             else if (!explosionSoundPlayed)
