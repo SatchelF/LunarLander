@@ -312,11 +312,13 @@ namespace CS5410
 
             // Draw the lander...
 
-            if (!GameOver)
+            // Draw the lander if game is not over or if it's a successful landing
+            if (!GameOver || (GameOver && successfulLanding))
             {
                 Vector2 origin = new Vector2(m_lunarLander.Width / 2f, m_lunarLander.Height / 2f);
                 m_spriteBatch.Draw(m_lunarLander, m_landerPosition, null, Color.White, m_landerRotation, origin, 0.3f, SpriteEffects.None, 0f);
             }
+
 
             // Draw the filled terrain with gray color
             for (int i = 0; i < terrainPoints.Length - 1; i++)
@@ -423,10 +425,14 @@ namespace CS5410
             m_velocity += m_gravity * deltaTime;
 
             // Update the lander's position
-            m_landerPosition += m_velocity * deltaTime;
+            if (!successfulLanding) // Only update position if the landing is not successful yet
+            {
+                m_landerPosition += m_velocity * deltaTime;
+                // Calculate the vertical speed for display (adjust as necessary for your logic)
+                m_verticalSpeed = m_velocity.Y;
+            }
 
-            // Calculate the vertical speed for display (adjust as necessary for your logic)
-            m_verticalSpeed = m_velocity.Y;
+            
 
             if (showCountdown && countdownTimer > 0)
             {
