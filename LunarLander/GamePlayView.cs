@@ -39,6 +39,7 @@ namespace CS5410
         private SoundEffectInstance thrustSoundInstance; // To control playback of the thruster sound
         private SoundEffect destructionSound;
         private bool explosionSoundPlayed;
+        private int currentLevel = 1; // Track the current level
 
 
         public override void loadContent(ContentManager contentManager)
@@ -49,7 +50,7 @@ namespace CS5410
             m_background = contentManager.Load<Texture2D>(backgroundPath);
             m_lunarLander = contentManager.Load<Texture2D>("Images/lunar_lander");
             destructionSound = contentManager.Load<SoundEffect>("lander_explosion");
-            thrustSound = contentManager.Load<SoundEffect>("lunar_booster"); 
+            thrustSound = contentManager.Load<SoundEffect>("lunar_booster");
             thrustSoundInstance = thrustSound.CreateInstance();
             thrustSoundInstance.IsLooped = true;
             m_pixel = new Texture2D(m_graphics.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
@@ -90,7 +91,15 @@ namespace CS5410
             {
                 if (keyboardState.IsKeyDown(Keys.Enter))
                 {
-                    InitializeNewGame(); // Restart the game
+                    if (!successfulLanding || currentLevel == 2)
+                    {
+                        currentLevel = 1; // Reset to level 1 if the game was not successful or if it was the last level
+                    }
+                    else
+                    {
+                        currentLevel++; // Move to next level if successful
+                    }
+                    InitializeNewGame(); // Initialize game based on the current level
                     GameOver = false; // Reset the game over flag
                 }
                 return GameStateEnum.GamePlay; // Keep the game state on GamePlay
@@ -153,26 +162,31 @@ namespace CS5410
             // Generate the midpoint displacement
             MidpointDisplacement(0, screenWidth - 1, maxTerrainHeight);
 
-            // Set number of landing zones
-            SetNumberOfLandingZones(1); // Assuming level 1 for now, adjust this as needed
+            // Set number of landing zones based on the current level
+            SetNumberOfLandingZones(currentLevel);
 
-            // Create landing zones
+            // Adjust landing zone generation to account for screen margins
+            int margin = (int)(screenWidth * 0.15); // 15% margin from sides
+            int usableWidth = screenWidth - 2 * margin; // Width minus margins
+            int segmentWidth = usableWidth / (numberOfLandingZones + 1);
+
             safeZoneStartXs = new List<int>();
             safeZoneEndXs = new List<int>();
 
-            int segmentWidth = screenWidth / (numberOfLandingZones + 1);
+            // Determine landing zone size modifier based on the level
+            float landingZoneSizeModifier = currentLevel == 2 ? 0.25f : LandingZonePadding; // Smaller zones for level 2
 
             for (int i = 0; i < numberOfLandingZones; i++)
             {
-                int safeZoneWidth = (int)(segmentWidth * LandingZonePadding) / 2 ;
-                int safeZoneStartX = segmentWidth * (i + 1) - safeZoneWidth / 2;
+                int safeZoneWidth = (int)(segmentWidth * landingZoneSizeModifier);
+                int safeZoneStartX = margin + segmentWidth * i + (segmentWidth - safeZoneWidth) / 2;
                 int safeZoneEndX = safeZoneStartX + safeZoneWidth;
 
-                safeZoneStartXs.Add(safeZoneStartX);
-                safeZoneEndXs.Add(safeZoneEndX);
+                safeZoneStartXs.Add(Math.Max(safeZoneStartX, margin)); // Ensure it's within the margin
+                safeZoneEndXs.Add(Math.Min(safeZoneEndX, screenWidth - margin)); // Ensure it's within the margin
             }
 
-            // Flatten the landing zones
+            // Flatten the landing zones and interpolate terrain
             for (int i = 0; i < numberOfLandingZones; i++)
             {
                 FlattenLandingZone(safeZoneStartXs[i], safeZoneEndXs[i]);
@@ -193,17 +207,12 @@ namespace CS5410
 
         private void FlattenLandingZone(int safeZoneStartX, int safeZoneEndX)
         {
-            // Get the Y value for the landing zone, which should be the minimum Y value within the zone.
+            int screenHeight = m_graphics.PreferredBackBufferHeight;
             float landingZoneY = terrainPoints[safeZoneStartX].Y;
             for (int i = safeZoneStartX; i <= safeZoneEndX; i++)
             {
-                landingZoneY = Math.Min(landingZoneY, terrainPoints[i].Y);
-            }
-
-            // Flatten the landing zone
-            for (int i = safeZoneStartX; i <= safeZoneEndX; i++)
-            {
-                terrainPoints[i].Y = landingZoneY;
+                // Ensure landing zones do not go below the screen by limiting their Y value
+                terrainPoints[i].Y = Math.Min(landingZoneY, screenHeight - 1); // Ensure Y-value is above the screen bottom
             }
 
             // Gradually adjust the terrain leading up to the landing zones to prevent sharp edges.
@@ -258,7 +267,7 @@ namespace CS5410
                 Vector2 origin = new Vector2(m_lunarLander.Width / 2f, m_lunarLander.Height / 2f);
                 m_spriteBatch.Draw(m_lunarLander, m_landerPosition, null, Color.White, m_landerRotation, origin, 0.3f, SpriteEffects.None, 0f);
             }
-           
+
             // Draw the filled terrain with gray color
             for (int i = 0; i < terrainPoints.Length - 1; i++)
             {
@@ -291,22 +300,26 @@ namespace CS5410
 
             Vector2 statusPosition = new Vector2(m_graphics.PreferredBackBufferWidth - 500, 50);
 
+            string levelText = $"Level: {currentLevel}";
+            Color levelColor = Color.Goldenrod;
 
-            string fuelText = $"Fuel: {m_fuel / 3 }";
+            string fuelText = $"Fuel: {m_fuel / 3}";
             Color fuelColor = m_fuel > 0 ? Color.Green : Color.White;
 
             // Assume these values for now, replace with actual vertical speed and angle later
-            string verticalSpeedText = $"Vertical Speed: {m_verticalSpeed / 10 } m/s";
+            string verticalSpeedText = $"Vertical Speed: {m_verticalSpeed / 10} m/s";
             Color verticalSpeedColor = m_verticalSpeed > 20 ? Color.White : Color.Green;
 
             float angle = (MathHelper.ToDegrees(m_landerRotation) + 360) % 360;
             string angleText = $"Angle: {angle}"; // Updated angle text
             Color angleColor = (angle > 5 && angle < 355) ? Color.White : Color.Green;
 
-            
-            
+
+
 
             // Draw the status text
+            m_spriteBatch.DrawString(m_font, levelText, statusPosition, levelColor);
+            statusPosition.Y += m_font.LineSpacing; // Move down for next line
             m_spriteBatch.DrawString(m_font, fuelText, statusPosition, fuelColor);
             statusPosition.Y += m_font.LineSpacing; // Move down for next line
             m_spriteBatch.DrawString(m_font, verticalSpeedText, statusPosition, verticalSpeedColor);
@@ -321,7 +334,7 @@ namespace CS5410
             {
                 if (successfulLanding)
                 {
-                    messageText = "Mission Success - Press Enter to Continue";
+                    messageText = "Mission Success - Press Enter to Continue ";
                     messageColor = Color.Green;
                 }
                 else
@@ -409,7 +422,7 @@ namespace CS5410
 
 
 
-            
+
         }
 
 
@@ -418,19 +431,18 @@ namespace CS5410
 
         public void SetNumberOfLandingZones(int level)
         {
-            // Set the default number of landing zones based on the level.
+            // Adjust this method to set the number of landing zones based on the level
             if (level == 1)
             {
                 numberOfLandingZones = 2;
             }
             else if (level == 2)
             {
-                numberOfLandingZones = 1;
+                numberOfLandingZones = 1; // Level 2 has a smaller, single landing zone
             }
-            
         }
 
-        
+
 
         private void MidpointDisplacement(int leftIndex, int rightIndex, float displacement)
         {
@@ -476,12 +488,22 @@ namespace CS5410
         private void ShowGameOver()
         {
             GameOver = true;
-            if (!explosionSoundPlayed && !successfulLanding)
+            if (successfulLanding)
+            {
+                if (currentLevel == 1)
+                {
+                    currentLevel++; // Move to next level
+                    InitializeNewGame(); // Initialize the next level
+                    GameOver = false; // Reset the game over flag
+                }
+            }
+            else if (!explosionSoundPlayed)
             {
                 destructionSound.Play();
                 explosionSoundPlayed = true;
             }
         }
+
 
         private bool CheckForSafeLanding(Vector2 collisionPoint)
         {
@@ -511,8 +533,7 @@ namespace CS5410
     }
 
 
-    
+
 
 
 }
-
