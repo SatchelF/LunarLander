@@ -11,6 +11,8 @@ namespace CS5410
 {
     public class GamePlayView : GameStateView
     {
+        #region Fields
+
         private SpriteFont m_font;
         private Texture2D m_background;
         private Texture2D m_lunarLander;
@@ -20,7 +22,6 @@ namespace CS5410
         private Vector2[] terrainPoints;
         private Random rand = new Random();
         private const float MaxTerrainHeight = 1.0f / 3.0f;
-        private const float Roughness = 2.5f;
         private List<int> safeZoneStartXs;
         private List<int> safeZoneEndXs;
         private int numberOfLandingZones;
@@ -43,9 +44,9 @@ namespace CS5410
         private float countdownTimer = 3.0f; // 3 seconds countdown
         private bool showCountdown = true; // Flag to control countdown display
         private bool showVictoryMessage = false; // Flag to control victory message display
+        #endregion
 
-
-
+        #region Game Loop
         public override void loadContent(ContentManager contentManager)
         {
             m_font = contentManager.Load<SpriteFont>("Fonts/menu");
@@ -61,6 +62,8 @@ namespace CS5410
             m_pixel.SetData(new[] { Color.White });
             InitializeNewGame();
         }
+
+        
 
         private void InitializeNewGame()
         {
@@ -87,6 +90,9 @@ namespace CS5410
 
             GenerateTerrain();
         }
+
+
+        
 
         public override GameStateEnum processInput(GameTime gameTime)
         {
@@ -153,113 +159,68 @@ namespace CS5410
             return GameStateEnum.GamePlay;
         }
 
-        private void GenerateTerrain()
+        public override void update(GameTime gameTime)
         {
-            int screenWidth = m_graphics.PreferredBackBufferWidth;
-            int screenHeight = m_graphics.PreferredBackBufferHeight;
-            int maxTerrainHeight = (int)(screenHeight * MaxTerrainHeight);
+            float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-            terrainPoints = new Vector2[screenWidth];
-            float leftHeight = rand.Next(maxTerrainHeight / 2, maxTerrainHeight);
-            float rightHeight = rand.Next(maxTerrainHeight / 2, maxTerrainHeight);
+            // Apply gravity to the lander's velocity
+            m_velocity += m_gravity * deltaTime;
 
-            terrainPoints[0] = new Vector2(0, screenHeight - leftHeight);
-            terrainPoints[screenWidth - 1] = new Vector2(screenWidth - 1, screenHeight - rightHeight);
-
-            // Generate the midpoint displacement
-            MidpointDisplacement(0, screenWidth - 1, maxTerrainHeight);
-
-            // Set number of landing zones based on the current level
-            SetNumberOfLandingZones(currentLevel);
-
-            // Adjust landing zone generation to account for screen margins
-            int margin = (int)(screenWidth * 0.15); // 15% margin from sides
-            int usableWidth = screenWidth - 2 * margin; // Width minus margins
-            int segmentWidth = usableWidth / (numberOfLandingZones + 1);
-
-            safeZoneStartXs = new List<int>();
-            safeZoneEndXs = new List<int>();
-
-            // Determine landing zone size modifier based on the level
-            float landingZoneSizeModifier = currentLevel == 2 ? 0.25f : LandingZonePadding; // Smaller zones for level 2
-
-            for (int i = 0; i < numberOfLandingZones; i++)
+            // Update the lander's position
+            if (!successfulLanding) // Only update position if the landing is not successful yet
             {
-                int safeZoneWidth = (int)(segmentWidth * landingZoneSizeModifier);
-                int safeZoneStartX = margin + segmentWidth * i + (segmentWidth - safeZoneWidth) / 2;
-                int safeZoneEndX = safeZoneStartX + safeZoneWidth;
-
-                safeZoneStartXs.Add(Math.Max(safeZoneStartX, margin)); // Ensure it's within the margin
-                safeZoneEndXs.Add(Math.Min(safeZoneEndX, screenWidth - margin)); // Ensure it's within the margin
+                m_landerPosition += m_velocity * deltaTime;
+                // Calculate the vertical speed for display (adjust as necessary for your logic)
+                m_verticalSpeed = m_velocity.Y;
             }
 
-            // Flatten the landing zones and interpolate terrain
-            for (int i = 0; i < numberOfLandingZones; i++)
+
+
+            if (showCountdown && countdownTimer > 0)
             {
-                FlattenLandingZone(safeZoneStartXs[i], safeZoneEndXs[i]);
+                countdownTimer -= (float)gameTime.ElapsedGameTime.TotalSeconds;
+                if (countdownTimer <= 0)
+                {
+                    showCountdown = false;
+                    if (currentLevel == 1 && successfulLanding)
+                    {
+                        currentLevel = 2; // Move to next level after countdown
+                        InitializeNewGame();
+                    }
+                }
+                return; // Skip other updates during countdown
             }
 
-            // Clear previous terrain triangles and generate new ones
-            terrainTriangles.Clear();
             for (int i = 0; i < terrainPoints.Length - 1; i++)
             {
-                Vector2 bottomLeft = new Vector2(terrainPoints[i].X, screenHeight);
-                Vector2 bottomRight = new Vector2(terrainPoints[i + 1].X, screenHeight);
-
-                terrainTriangles.Add(new Triangle(terrainPoints[i], terrainPoints[i], bottomLeft)); // This triangle is for the outline (top)
-                terrainTriangles.Add(new Triangle(terrainPoints[i], bottomLeft, bottomRight)); // This triangle is for the filled part
-                terrainTriangles.Add(new Triangle(terrainPoints[i], bottomRight, terrainPoints[i + 1])); // This triangle is for the outline (top)
-            }
-        }
-
-        private void FlattenLandingZone(int safeZoneStartX, int safeZoneEndX)
-        {
-            int screenHeight = m_graphics.PreferredBackBufferHeight;
-            float landingZoneY = terrainPoints[safeZoneStartX].Y;
-            for (int i = safeZoneStartX; i <= safeZoneEndX; i++)
-            {
-                // Ensure landing zones do not go below the screen by limiting their Y value
-                terrainPoints[i].Y = Math.Min(landingZoneY, screenHeight - 1); // Ensure Y-value is above the screen bottom
-            }
-
-            // Gradually adjust the terrain leading up to the landing zones to prevent sharp edges.
-            InterpolateTerrainToLandingZone(safeZoneStartX, safeZoneEndX);
-        }
-
-        private void InterpolateTerrainToLandingZone(int safeZoneStartX, int safeZoneEndX)
-        {
-            // Define the range over which we will interpolate the heights leading up to the landing zone
-            int interpolationRange = 20; // Adjust this value as needed for a smoother transition
-
-            // Interpolate points before the landing zone
-            if (safeZoneStartX > interpolationRange)
-            {
-                float startHeight = terrainPoints[safeZoneStartX - interpolationRange].Y;
-                float endHeight = terrainPoints[safeZoneStartX].Y;
-                float heightDiff = endHeight - startHeight;
-
-                for (int i = 0; i < interpolationRange; i++)
+                if (LineCircleIntersection(terrainPoints[i], terrainPoints[i + 1], m_landerPosition, 30)) // Assuming a small radius for simplicity
                 {
-                    float fractionalHeight = heightDiff * (i / (float)interpolationRange);
-                    terrainPoints[safeZoneStartX - interpolationRange + i].Y = startHeight + fractionalHeight;
+                    if (CheckForSafeLanding(m_landerPosition))
+                    {
+                        // Handle successful landing
+                        successfulLanding = true;
+                        GameOver = true; // Or handle as appropriate for your game
+                        // Optionally trigger success actions here
+                    }
+                    else
+                    {
+                        // Handle crash
+                        ShowGameOver();
+                    }
+                    break;
                 }
             }
-
-            // Interpolate points after the landing zone
-            if (safeZoneEndX < terrainPoints.Length - interpolationRange)
+            // Check if the lander has fallen off the screen
+            if (m_landerPosition.Y > m_graphics.PreferredBackBufferHeight)
             {
-                float startHeight = terrainPoints[safeZoneEndX].Y;
-                float endHeight = terrainPoints[safeZoneEndX + interpolationRange].Y;
-                float heightDiff = endHeight - startHeight;
-
-                for (int i = 1; i <= interpolationRange; i++)
-                {
-                    float fractionalHeight = heightDiff * (i / (float)interpolationRange);
-                    terrainPoints[safeZoneEndX + i].Y = startHeight + fractionalHeight;
-                }
+                ShowGameOver();
             }
-        }
 
+
+
+
+
+        }
 
 
         public override void render(GameTime gameTime)
@@ -390,99 +351,137 @@ namespace CS5410
             m_spriteBatch.End();
         }
 
-        private void DrawRectangle(SpriteBatch spriteBatch, Vector2 topLeft, Vector2 bottomLeft, Vector2 topRight, Vector2 bottomRight, Color color)
+        #endregion
+
+        #region Terrain Generation
+
+        private MyRandom profsRand = new MyRandom(); // Use your custom MyRandom class
+        private void GenerateTerrain()
         {
-            spriteBatch.Draw(m_pixel, new Rectangle((int)topLeft.X, (int)topLeft.Y, (int)(topRight.X - topLeft.X), (int)(bottomLeft.Y - topLeft.Y)), null, color, 0, Vector2.Zero, SpriteEffects.None, 0);
-        }
+            int screenWidth = m_graphics.PreferredBackBufferWidth;
+            int screenHeight = m_graphics.PreferredBackBufferHeight;
+            int maxTerrainHeight = (int)(screenHeight * (2.0f / 3.0f));
 
+            // Increase the range for the initial heights to get more variance
+            float initialRangeMin = maxTerrainHeight / 2; // You can increase this
+            float initialRangeMax = maxTerrainHeight;     // You can increase this
 
-        private void DrawLine(SpriteBatch spriteBatch, Vector2 start, Vector2 end, Color color, int thickness)
-        {
-            Vector2 edge = end - start;
-            // Calculate the angle to rotate the line
-            float angle = (float)Math.Atan2(edge.Y, edge.X);
+            terrainPoints = new Vector2[screenWidth];
+            terrainPoints[0] = new Vector2(0, screenHeight - profsRand.nextRange(initialRangeMin, initialRangeMax));
+            terrainPoints[screenWidth - 1] = new Vector2(screenWidth - 1, screenHeight - profsRand.nextRange(initialRangeMin, initialRangeMax));
 
-            spriteBatch.Draw(m_pixel,
-                new Rectangle( // Define the rectangle
-                    (int)start.X,
-                    (int)start.Y,
-                    (int)edge.Length(), // Length of the line
-                    thickness), // Thickness of the line
-                null,
-                color,
-                angle, // Rotation angle
-                new Vector2(0, 0), // Origin within the line, set to (0,0) as we're rotating around the start point
-                SpriteEffects.None,
-                0);
-        }
+            // Increase the roughness factor to make the terrain more rugged
+            float roughnessFactor = 4.0f; 
 
+            // Perform the midpoint displacement algorithm
+            MidpointDisplacement(0, screenWidth - 1, maxTerrainHeight / 2, roughnessFactor);
 
-        public override void update(GameTime gameTime)
-        {
-            float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
+            SetNumberOfLandingZones(currentLevel);
 
-            // Apply gravity to the lander's velocity
-            m_velocity += m_gravity * deltaTime;
+            // Adjust landing zone generation to account for screen margins
+            int margin = (int)(screenWidth * 0.15); // 15% margin from sides
+            int usableWidth = screenWidth - 2 * margin; // Width minus margins
+            int segmentWidth = usableWidth / (numberOfLandingZones + 1);
 
-            // Update the lander's position
-            if (!successfulLanding) // Only update position if the landing is not successful yet
+            safeZoneStartXs = new List<int>();
+            safeZoneEndXs = new List<int>();
+
+            // Determine landing zone size modifier based on the level
+            float landingZoneSizeModifier = currentLevel == 2 ? 0.25f : LandingZonePadding; // Smaller zones for level 2
+
+            for (int i = 0; i < numberOfLandingZones; i++)
             {
-                m_landerPosition += m_velocity * deltaTime;
-                // Calculate the vertical speed for display (adjust as necessary for your logic)
-                m_verticalSpeed = m_velocity.Y;
+                int safeZoneWidth = (int)(segmentWidth * landingZoneSizeModifier);
+                int safeZoneStartX = margin + segmentWidth * i + (segmentWidth - safeZoneWidth) / 2;
+                int safeZoneEndX = safeZoneStartX + safeZoneWidth;
+
+                safeZoneStartXs.Add(Math.Max(safeZoneStartX, margin)); // Ensure it's within the margin
+                safeZoneEndXs.Add(Math.Min(safeZoneEndX, screenWidth - margin)); // Ensure it's within the margin
             }
 
-            
-
-            if (showCountdown && countdownTimer > 0)
+            // Flatten the landing zones and interpolate terrain
+            for (int i = 0; i < numberOfLandingZones; i++)
             {
-                countdownTimer -= (float)gameTime.ElapsedGameTime.TotalSeconds;
-                if (countdownTimer <= 0)
-                {
-                    showCountdown = false;
-                    if (currentLevel == 1 && successfulLanding)
-                    {
-                        currentLevel = 2; // Move to next level after countdown
-                        InitializeNewGame();
-                    }
-                }
-                return; // Skip other updates during countdown
+                FlattenLandingZone(safeZoneStartXs[i], safeZoneEndXs[i]);
             }
 
+            // Clear previous terrain triangles and generate new ones
+            terrainTriangles.Clear();
             for (int i = 0; i < terrainPoints.Length - 1; i++)
             {
-                if (LineCircleIntersection(terrainPoints[i], terrainPoints[i + 1], m_landerPosition, 30)) // Assuming a small radius for simplicity
-                {
-                    if (CheckForSafeLanding(m_landerPosition))
-                    {
-                        // Handle successful landing
-                        successfulLanding = true;
-                        GameOver = true; // Or handle as appropriate for your game
-                        // Optionally trigger success actions here
-                    }
-                    else
-                    {
-                        // Handle crash
-                        ShowGameOver();
-                    }
-                    break;
-                }
+                Vector2 bottomLeft = new Vector2(terrainPoints[i].X, screenHeight);
+                Vector2 bottomRight = new Vector2(terrainPoints[i + 1].X, screenHeight);
+
+                terrainTriangles.Add(new Triangle(terrainPoints[i], terrainPoints[i], bottomLeft)); // This triangle is for the outline (top)
+                terrainTriangles.Add(new Triangle(terrainPoints[i], bottomLeft, bottomRight)); // This triangle is for the filled part
+                terrainTriangles.Add(new Triangle(terrainPoints[i], bottomRight, terrainPoints[i + 1])); // This triangle is for the outline (top)
             }
-            // Check if the lander has fallen off the screen
-            if (m_landerPosition.Y > m_graphics.PreferredBackBufferHeight)
-            {
-                ShowGameOver();
-            }
-
-
-
-
-
         }
 
+        private void MidpointDisplacement(int leftIndex, int rightIndex, float height, float roughness)
+        {
+            if (leftIndex >= rightIndex - 1)
+            {
+                return;
+            }
 
+            int midIndex = (leftIndex + rightIndex) / 2;
+            float midpointHeight = (terrainPoints[leftIndex].Y + terrainPoints[rightIndex].Y) / 2;
+            float displacement = (float)profsRand.nextGaussian(0, 1) * height * roughness;
+            terrainPoints[midIndex] = new Vector2(midIndex, MathHelper.Clamp(midpointHeight + displacement, 0, m_graphics.PreferredBackBufferHeight));
 
+            // Recursive calls, halve the height and roughness each time
+            MidpointDisplacement(leftIndex, midIndex, height / 2, roughness / 2);
+            MidpointDisplacement(midIndex, rightIndex, height / 2, roughness / 2);
+        }
 
+        private void FlattenLandingZone(int safeZoneStartX, int safeZoneEndX)
+        {
+            int screenHeight = m_graphics.PreferredBackBufferHeight;
+            float landingZoneY = terrainPoints[safeZoneStartX].Y;
+            for (int i = safeZoneStartX; i <= safeZoneEndX; i++)
+            {
+                // Ensure landing zones do not go below the screen by limiting their Y value
+                terrainPoints[i].Y = Math.Min(landingZoneY, screenHeight - 1); // Ensure Y-value is above the screen bottom
+            }
+
+            // Gradually adjust the terrain leading up to the landing zones to prevent sharp edges.
+            InterpolateTerrainToLandingZone(safeZoneStartX, safeZoneEndX);
+        }
+
+        private void InterpolateTerrainToLandingZone(int safeZoneStartX, int safeZoneEndX)
+        {
+            // Define the range over which we will interpolate the heights leading up to the landing zone
+            int interpolationRange = 20; // Adjust this value as needed for a smoother transition
+
+            // Interpolate points before the landing zone
+            if (safeZoneStartX > interpolationRange)
+            {
+                float startHeight = terrainPoints[safeZoneStartX - interpolationRange].Y;
+                float endHeight = terrainPoints[safeZoneStartX].Y;
+                float heightDiff = endHeight - startHeight;
+
+                for (int i = 0; i < interpolationRange; i++)
+                {
+                    float fractionalHeight = heightDiff * (i / (float)interpolationRange);
+                    terrainPoints[safeZoneStartX - interpolationRange + i].Y = startHeight + fractionalHeight;
+                }
+            }
+
+            // Interpolate points after the landing zone
+            if (safeZoneEndX < terrainPoints.Length - interpolationRange)
+            {
+                float startHeight = terrainPoints[safeZoneEndX].Y;
+                float endHeight = terrainPoints[safeZoneEndX + interpolationRange].Y;
+                float heightDiff = endHeight - startHeight;
+
+                for (int i = 1; i <= interpolationRange; i++)
+                {
+                    float fractionalHeight = heightDiff * (i / (float)interpolationRange);
+                    terrainPoints[safeZoneEndX + i].Y = startHeight + fractionalHeight;
+                }
+            }
+        }
 
         public void SetNumberOfLandingZones(int level)
         {
@@ -497,32 +496,11 @@ namespace CS5410
             }
         }
 
+      
 
+        #endregion
 
-        private void MidpointDisplacement(int leftIndex, int rightIndex, float displacement)
-        {
-            if (leftIndex < rightIndex - 1)
-            {
-                int midIndex = (leftIndex + rightIndex) / 2;
-                float midHeight = (terrainPoints[leftIndex].Y + terrainPoints[rightIndex].Y) / 2;
-
-                midHeight = MathHelper.Clamp(midHeight + RandomDisplacement(midIndex - leftIndex),
-                                             m_graphics.PreferredBackBufferHeight * MaxTerrainHeight,
-                                             m_graphics.PreferredBackBufferHeight);
-
-                terrainPoints[midIndex] = new Vector2(midIndex, midHeight);
-
-                MidpointDisplacement(leftIndex, midIndex, displacement * Roughness);
-                MidpointDisplacement(midIndex, rightIndex, displacement * Roughness);
-            }
-        }
-
-        private float RandomDisplacement(int length)
-        {
-            return (float)(rand.NextDouble() - 0.5) * Roughness * length;
-        }
-
-
+        #region Utility Methods
         private bool LineCircleIntersection(Vector2 pt1, Vector2 pt2, Vector2 circleCenter, float circleRadius)
         {
             Vector2 v1 = pt2 - pt1;
@@ -598,7 +576,40 @@ namespace CS5410
 
             return isInSafeZone && isSpeedSafe && isAngleSafe;
         }
+
+        #endregion
+
+        #region Render Methods
+        private void DrawRectangle(SpriteBatch spriteBatch, Vector2 topLeft, Vector2 bottomLeft, Vector2 topRight, Vector2 bottomRight, Color color)
+        {
+            spriteBatch.Draw(m_pixel, new Rectangle((int)topLeft.X, (int)topLeft.Y, (int)(topRight.X - topLeft.X), (int)(bottomLeft.Y - topLeft.Y)), null, color, 0, Vector2.Zero, SpriteEffects.None, 0);
+        }
+
+
+        private void DrawLine(SpriteBatch spriteBatch, Vector2 start, Vector2 end, Color color, int thickness)
+        {
+            Vector2 edge = end - start;
+            // Calculate the angle to rotate the line
+            float angle = (float)Math.Atan2(edge.Y, edge.X);
+
+            spriteBatch.Draw(m_pixel,
+                new Rectangle( // Define the rectangle
+                    (int)start.X,
+                    (int)start.Y,
+                    (int)edge.Length(), // Length of the line
+                    thickness), // Thickness of the line
+                null,
+                color,
+                angle, // Rotation angle
+                new Vector2(0, 0), // Origin within the line, set to (0,0) as we're rotating around the start point
+                SpriteEffects.None,
+                0);
+        }
+
+        #endregion
     }
+
+
 
 
 
