@@ -267,6 +267,49 @@ namespace CS5410
             m_spriteBatch.Begin();
             m_spriteBatch.Draw(m_background, new Rectangle(0, 0, m_graphics.PreferredBackBufferWidth, m_graphics.PreferredBackBufferHeight), Color.White);
 
+
+            Vector2 statusPosition = new Vector2(m_graphics.PreferredBackBufferWidth - 500, 50);
+            Vector2 leftSidePosition = new Vector2(50, 50); // Adjust x and y as needed
+
+            string levelText = $"Level: {currentLevel}";
+            Color levelColor = Color.Goldenrod;
+
+            // Assuming you have a way to calculate or update score
+            string scoreText = $"Score: [Your Score Here]"; // Replace [Your Score Here] with actual score
+            Color scoreColor = Color.Goldenrod; // You can choose a different color if you like
+
+
+            string fuelText = $"Fuel: {m_fuel / 3}";
+            Color fuelColor = m_fuel > 0 ? Color.Green : Color.White;
+
+            // Assume these values for now, replace with actual vertical speed and angle later
+            string verticalSpeedText = $"Vertical Speed: {m_verticalSpeed / 10} m/s";
+            Color verticalSpeedColor = m_verticalSpeed > 20 ? Color.White : Color.Green;
+
+            float angle = (MathHelper.ToDegrees(m_landerRotation) + 360) % 360;
+            string angleText = $"Angle: {angle}"; // Updated angle text
+            Color angleColor = (angle > 5 && angle < 355) ? Color.White : Color.Green;
+
+
+
+            // Draw level and score text
+            m_spriteBatch.DrawString(m_font, levelText, leftSidePosition, levelColor);
+            leftSidePosition.Y += m_font.LineSpacing; // Move down for the next piece of information
+            m_spriteBatch.DrawString(m_font, scoreText, leftSidePosition, scoreColor);
+
+
+            // Draw the status text
+            m_spriteBatch.DrawString(m_font, fuelText, statusPosition, fuelColor);
+            statusPosition.Y += m_font.LineSpacing; // Move down for next line
+            m_spriteBatch.DrawString(m_font, verticalSpeedText, statusPosition, verticalSpeedColor);
+            statusPosition.Y += m_font.LineSpacing; // Move down for next line
+            m_spriteBatch.DrawString(m_font, angleText, statusPosition, angleColor);
+
+            Vector2 centerScreen = new Vector2(m_graphics.PreferredBackBufferWidth / 2, m_graphics.PreferredBackBufferHeight / 2);
+            string messageText = "";
+            Color messageColor = Color.White;
+
+
             // Draw the lander...
 
             if (!GameOver)
@@ -301,41 +344,6 @@ namespace CS5410
                     new Vector2(safeZoneEndXs[zone], terrainPoints[safeZoneEndXs[zone]].Y),
                     Color.Green, 3);
             }
-
-
-
-
-            Vector2 statusPosition = new Vector2(m_graphics.PreferredBackBufferWidth - 500, 50);
-
-            string levelText = $"Level: {currentLevel}";
-            Color levelColor = Color.Goldenrod;
-
-            string fuelText = $"Fuel: {m_fuel / 3}";
-            Color fuelColor = m_fuel > 0 ? Color.Green : Color.White;
-
-            // Assume these values for now, replace with actual vertical speed and angle later
-            string verticalSpeedText = $"Vertical Speed: {m_verticalSpeed / 10} m/s";
-            Color verticalSpeedColor = m_verticalSpeed > 20 ? Color.White : Color.Green;
-
-            float angle = (MathHelper.ToDegrees(m_landerRotation) + 360) % 360;
-            string angleText = $"Angle: {angle}"; // Updated angle text
-            Color angleColor = (angle > 5 && angle < 355) ? Color.White : Color.Green;
-
-
-
-
-            // Draw the status text
-            m_spriteBatch.DrawString(m_font, levelText, statusPosition, levelColor);
-            statusPosition.Y += m_font.LineSpacing; // Move down for next line
-            m_spriteBatch.DrawString(m_font, fuelText, statusPosition, fuelColor);
-            statusPosition.Y += m_font.LineSpacing; // Move down for next line
-            m_spriteBatch.DrawString(m_font, verticalSpeedText, statusPosition, verticalSpeedColor);
-            statusPosition.Y += m_font.LineSpacing; // Move down for next line
-            m_spriteBatch.DrawString(m_font, angleText, statusPosition, angleColor);
-
-            Vector2 centerScreen = new Vector2(m_graphics.PreferredBackBufferWidth / 2, m_graphics.PreferredBackBufferHeight / 2);
-            string messageText = "";
-            Color messageColor = Color.White;
 
             if (GameOver)
             {
