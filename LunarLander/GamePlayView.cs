@@ -15,6 +15,7 @@ namespace CS5410
         #region Fields
 
         private SpriteFont m_font;
+        private SpriteFont m_Bigfont;
         private Texture2D m_background;
         private Texture2D m_lunarLander;
         private Texture2D m_pixel;
@@ -45,7 +46,7 @@ namespace CS5410
         private bool sucessSoundPlayed;
         private int currentLevel = 1; // Track the current level
         private float countdownTimer = 3.0f; // 3 seconds countdown
-        private bool showCountdown = true; // Flag to control countdown display
+        private bool showCountdown; // Flag to control countdown display
         private bool showVictoryMessage = false; // Flag to control victory message display
         private int screenHeight;
         private int screenWidth;
@@ -60,7 +61,8 @@ namespace CS5410
         #region Game Loop
         public override void loadContent(ContentManager contentManager)
         {
-            m_font = contentManager.Load<SpriteFont>("Fonts/menu");
+            m_font = contentManager.Load<SpriteFont>("Fonts/game-info");
+            m_Bigfont = contentManager.Load<SpriteFont>("Fonts/menu-select");
             int randomBackgroundIndex = rand.Next(2, 7);
             string backgroundPath = $"Images/Space_Background{randomBackgroundIndex}";
             m_background = contentManager.Load<Texture2D>(backgroundPath);
@@ -253,6 +255,20 @@ namespace CS5410
                             landerWinSound.Play()
 ;                           sucessSoundPlayed = true;
                         }
+
+                        if (currentLevel < 2) // Assuming 2 is the last level for example
+                        {
+                            showCountdown = true; // Start countdown for next level
+                            countdownTimer = 3.0f; // Reset countdown timer
+                        }
+
+
+                        if (currentLevel == 2)
+                        {
+                            // After completing Level 2, show victory message without a countdown
+                            showVictoryMessage = true;
+                            // Do not automatically reset or proceed; wait for player input
+                        }
                     }
                     else
                     {
@@ -281,7 +297,7 @@ namespace CS5410
             m_spriteBatch.Draw(m_background, new Rectangle(0, 0, m_graphics.PreferredBackBufferWidth, m_graphics.PreferredBackBufferHeight), Color.White);
 
 
-            Vector2 statusPosition = new Vector2(m_graphics.PreferredBackBufferWidth - 500, 50);
+            Vector2 statusPosition = new Vector2(m_graphics.PreferredBackBufferWidth - 300, 50);
             Vector2 leftSidePosition = new Vector2(50, 50); // Adjust x and y as needed
 
             string levelText = $"Level: {currentLevel}";
@@ -295,7 +311,7 @@ namespace CS5410
             string fuelText = $"Fuel: {m_fuel / 3}";
             Color fuelColor = m_fuel > 0 ? Color.Green : Color.White;
 
-            // Assume these values for now, replace with actual vertical speed and angle later
+            
             string verticalSpeedText = $"Vertical Speed: {m_verticalSpeed / 10} m/s";
             Color verticalSpeedColor = m_verticalSpeed > 20 ? Color.White : Color.Green;
 
@@ -369,29 +385,27 @@ namespace CS5410
 
                 if (successfulLanding && currentLevel == 2)
                 {
-                    messageText = "YOU WIN - Press Enter to Restart or ESC for new game ";
+                    messageText = "YOU WIN! - Press Enter to Restart or ESC for new game ";
                     messageColor = Color.Goldenrod;
 
                 }
 
-
                 else if (successfulLanding)
                 {
-                    messageText = "Mission Success - Press Enter to Continue ";
+                    messageText = "Mission Success! - Press Enter to Continue ";
                     messageColor = Color.Green;
 
                 }
 
-
                 else
                 {
-                    messageText = "Mission Failed - Press Enter to Restart";
+                    messageText = "Mission Failed! - Press Enter to Restart";
                     messageColor = Color.Red;
                 }
 
                 Vector2 textSize = m_font.MeasureString(messageText);
-                Vector2 textPosition = centerScreen - textSize / 2;
-                m_spriteBatch.DrawString(m_font, messageText, textPosition, messageColor);
+                Vector2 textPosition = centerScreen - textSize;
+                m_spriteBatch.DrawString(m_Bigfont, messageText, textPosition, messageColor);
             }
 
 
@@ -444,7 +458,7 @@ namespace CS5410
             terrainPoints[terrainPoints.Length - 1] = new Vector2(screenWidth - 1, screenHeight - profsRand.nextRange(initialRangeMin, initialRangeMax));
 
             // Adjusted roughness factor for more points
-            float roughnessFactor = 100.0f;  
+            float roughnessFactor = 50.0f;  
 
             // Run midpoint displacement for higher resolution
             MidpointDisplacement(0, terrainPoints.Length - 1, maxTerrainHeight / 2, roughnessFactor);
@@ -618,32 +632,14 @@ namespace CS5410
 
         private void ShowGameOver()
         {
-
+            GameOver = true;
 
             if (thrustSoundInstance.State == SoundState.Playing)
             {
                 thrustSoundInstance.Stop();
             }
 
-            GameOver = true;
-            if (successfulLanding)
-            {
-                
-
-                if (currentLevel == 1)
-                {
-                    // Transition from Level 1 to 2 with a countdown
-                    showCountdown = true;
-                    countdownTimer = 3.0f;
-                }
-                else if (currentLevel == 2)
-                {
-                    // After completing Level 2, show victory message without a countdown
-                    showVictoryMessage = true;
-                    // Do not automatically reset or proceed; wait for player input
-                }
-            }
-            else if (!explosionSoundPlayed)
+            if (!explosionSoundPlayed)
             {
                 destructionSound.Play();
                 landerLoseSound.Play();
@@ -687,39 +683,7 @@ namespace CS5410
             spriteBatch.Draw(m_pixel, new Rectangle((int)topLeft.X, (int)topLeft.Y, (int)(topRight.X - topLeft.X), (int)(bottomLeft.Y - topLeft.Y)), null, color, 0, Vector2.Zero, SpriteEffects.None, 0);
         }
 
-        private void DebugDrawLandingZones(SpriteBatch spriteBatch)
-        {
-            if (safeZoneStartXs.Count != safeZoneEndXs.Count)
-            {
-                throw new InvalidOperationException("The number of start and end points for landing zones should be the same.");
-            }
-
-            // Debug color and height for visibility
-            Color debugColor = Color.Magenta; // Use a bright color for debugging
-            int debugHeight = 10; // Height of the debug landing zone rectangle
-
-            for (int i = 0; i < safeZoneStartXs.Count; i++)
-            {
-                // Get the X coordinates for the landing zone
-                int startX = safeZoneStartXs[i];
-                int endX = safeZoneEndXs[i];
-
-                // Calculate the width of the landing zone
-                int width = endX - startX;
-
-                // If width is 0, there might be an error in landing zone calculation
-                if (width <= 0)
-                {
-                    continue; // Skip this iteration
-                }
-
-                // Calculate Y coordinate for the debug rectangle to be at the bottom of the screen
-                int yPosition = screenHeight - debugHeight;
-
-                // Draw the rectangle representing the landing zone
-                spriteBatch.Draw(m_pixel, new Rectangle(startX, yPosition, width, debugHeight), debugColor);
-            }
-        }
+        
 
 
 

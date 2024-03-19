@@ -41,16 +41,17 @@ namespace CS5410
             // Calculate the starting position of the thrust, offset from the lander's center
             Vector2 thrustStartPosition = landerCenter + thrustOffset;
 
+            Color[] particleColors = new Color[] { Color.Red, Color.Orange, Color.Yellow };
             // Now create particles using the calculated start position
             for (int i = 0; i < 5; i++) // Generate a few particles each frame
             {
                 float size = (float)m_random.nextGaussian(m_sizeMean, m_sizeStdDev);
-                size *= 2; // Double the size for bigger particles
+                size *= 4; // Double the size for bigger particles
 
-                Color initialColor = Color.White; // Consider making the color more intense if needed
+                Color initialColor = particleColors[m_random.Next(particleColors.Length)];
                 var particle = new Particle(
                     thrustStartPosition,
-                    direction + m_random.nextCircleVector() * 0.1f, // Slightly randomize direction
+                    direction + m_random.nextCircleVector() * 0.2f, // Slightly randomize direction
                     (float)m_random.nextGaussian(m_speedMean, m_speedStDev) * 0.5f, // Thrust particles are slower
                     new Vector2(size, size), // Use the new, larger size
                     TimeSpan.FromMilliseconds(m_random.nextGaussian(m_lifetimeMean / 2, m_lifetimeStdDev / 2)),
@@ -62,25 +63,27 @@ namespace CS5410
 
         public void ShipCrash(Vector2 position)
         {
-            // Create particles for the crash effect
-            for (int i = 0; i < 100; i++) // Generate many particles to simulate an explosion
+            Color[] particleColors = { Color.Red, Color.Orange, Color.Yellow };
+            for (int i = 0; i < 200; i++) // Generate many particles to simulate an explosion
             {
-                float size = (float)m_random.nextGaussian(m_sizeMean , m_sizeStdDev);
-                Color initialColor = Color.IndianRed;
-                var particle = new Particle(
+                float size = (float)m_random.nextGaussian(m_sizeMean, m_sizeStdDev);
+                Color initialColor = particleColors[m_random.Next(particleColors.Length)];
+                Vector2 direction = m_random.nextCircleVector() * 0.5f; // Reduce spread by multiplying by a factor less than 1
 
+                var particle = new Particle(
                     position,
-                    m_random.nextCircleVector(), // Random direction
-                    (float)m_random.nextGaussian(m_speedMean * 2, m_speedStDev * 2), // Faster for explosion
+                    direction, // Less spread out direction
+                    (float)m_random.nextGaussian(m_speedMean, m_speedStDev) * 0.5f, // Slower speed for a more condensed effect
                     new Vector2(size, size),
-                    TimeSpan.FromMilliseconds(m_random.nextGaussian(m_lifetimeMean * 2, m_lifetimeStdDev * 2)),
+                    TimeSpan.FromMilliseconds(m_random.nextGaussian(m_lifetimeMean, m_lifetimeStdDev)),
                     initialColor
                 );
                 m_particles.Add(particle.name, particle);
             }
         }
 
-        
+
+
 
         public void update(GameTime gameTime)
         {
