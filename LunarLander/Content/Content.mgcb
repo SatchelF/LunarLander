@@ -117,6 +117,12 @@
 /processorParam:Quality=Best
 /build:lander_explosion.wav
 
+#begin lander_lose_sound.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:lander_lose_sound.wav
+
 #begin lander_thrust (2).wav
 /importer:WavImporter
 /processor:SoundEffectProcessor
@@ -128,6 +134,12 @@
 /processor:SoundEffectProcessor
 /processorParam:Quality=Best
 /build:lander_thrust.wav
+
+#begin lander_win_sound.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:lander_win_sound.wav
 
 #begin lunar_booster.wav
 /importer:WavImporter

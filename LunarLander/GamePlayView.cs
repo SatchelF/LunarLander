@@ -39,7 +39,10 @@ namespace CS5410
         private SoundEffect thrustSound; // Sound effect for the thruster
         private SoundEffectInstance thrustSoundInstance; // To control playback of the thruster sound
         private SoundEffect destructionSound;
+        private SoundEffect landerWinSound;
+        private SoundEffect landerLoseSound;
         private bool explosionSoundPlayed;
+        private bool sucessSoundPlayed;
         private int currentLevel = 1; // Track the current level
         private float countdownTimer = 3.0f; // 3 seconds countdown
         private bool showCountdown = true; // Flag to control countdown display
@@ -59,6 +62,8 @@ namespace CS5410
             m_lunarLander = contentManager.Load<Texture2D>("Images/lunar_lander");
             destructionSound = contentManager.Load<SoundEffect>("lander_explosion");
             thrustSound = contentManager.Load<SoundEffect>("lunar_booster");
+            landerLoseSound = contentManager.Load<SoundEffect>("lander_lose_sound");
+            landerWinSound = contentManager.Load<SoundEffect>("lander_win_sound");
             thrustSoundInstance = thrustSound.CreateInstance();
             thrustSoundInstance.IsLooped = true;
             m_pixel = new Texture2D(m_graphics.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
@@ -83,6 +88,7 @@ namespace CS5410
             successfulLanding = false;
             showCountdown = false; // Make sure countdown does not start at the beginning
             countdownTimer = 3.0f; // Reset for when we do need it
+            sucessSoundPlayed = false;
 
             int randomX = rand.Next(minX, maxX);
             int randomY = rand.Next(minY, maxY);
@@ -205,8 +211,12 @@ namespace CS5410
                     {
                         // Handle successful landing
                         successfulLanding = true;
-                        GameOver = true; // Or handle as appropriate for your game
-                        // Optionally trigger success actions here
+                        GameOver = true;
+                        if (!sucessSoundPlayed)
+                        {
+                            landerWinSound.Play()
+;                           sucessSoundPlayed = true;
+                        }
                     }
                     else
                     {
@@ -325,6 +335,7 @@ namespace CS5410
                 {
                     messageText = "YOU WIN - Press Enter to Restart or ESC for new game ";
                     messageColor = Color.Goldenrod;
+
                 }
 
 
@@ -332,6 +343,7 @@ namespace CS5410
                 {
                     messageText = "Mission Success - Press Enter to Continue ";
                     messageColor = Color.Green;
+
                 }
 
 
@@ -564,6 +576,8 @@ namespace CS5410
             GameOver = true;
             if (successfulLanding)
             {
+                
+
                 if (currentLevel == 1)
                 {
                     // Transition from Level 1 to 2 with a countdown
@@ -580,6 +594,7 @@ namespace CS5410
             else if (!explosionSoundPlayed)
             {
                 destructionSound.Play();
+                landerLoseSound.Play();
                 explosionSoundPlayed = true;
             }
         }
