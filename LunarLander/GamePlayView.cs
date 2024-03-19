@@ -44,6 +44,8 @@ namespace CS5410
         private float countdownTimer = 3.0f; // 3 seconds countdown
         private bool showCountdown = true; // Flag to control countdown display
         private bool showVictoryMessage = false; // Flag to control victory message display
+        private int screenHeight;
+        private int screenWidth;
         #endregion
 
         #region Game Loop
@@ -63,12 +65,12 @@ namespace CS5410
             InitializeNewGame();
         }
 
-        
+
 
         private void InitializeNewGame()
         {
-            int screenHeight = m_graphics.PreferredBackBufferHeight;
-            int screenWidth = m_graphics.PreferredBackBufferWidth;
+            screenHeight = m_graphics.PreferredBackBufferHeight;
+            screenWidth = m_graphics.PreferredBackBufferWidth;
             int maxY = screenHeight / 5;
             int minY = 0;
             int minX = screenWidth / 6;
@@ -92,7 +94,7 @@ namespace CS5410
         }
 
 
-        
+
 
         public override GameStateEnum processInput(GameTime gameTime)
         {
@@ -121,7 +123,7 @@ namespace CS5410
                 return GameStateEnum.GamePlay; // Keep the game state on GamePlay
             }
 
-            
+
 
             if (keyboardState.IsKeyDown(Keys.Left))
             {
@@ -308,9 +310,12 @@ namespace CS5410
                     Color.Green, 3);
             }
 
+
+            
+
             if (GameOver)
             {
-                
+
 
                 if (successfulLanding && currentLevel == 2)
                 {
@@ -346,7 +351,7 @@ namespace CS5410
                 // Adjust the position as needed
                 m_spriteBatch.DrawString(m_font, countdownText, countdownPosition, Color.White);
             }
-            
+
 
             m_spriteBatch.End();
         }
@@ -358,8 +363,7 @@ namespace CS5410
         private MyRandom profsRand = new MyRandom(); // Use your custom MyRandom class
         private void GenerateTerrain()
         {
-            int screenWidth = m_graphics.PreferredBackBufferWidth;
-            int screenHeight = m_graphics.PreferredBackBufferHeight;
+
             int maxTerrainHeight = (int)(screenHeight * (2.0f / 3.0f));
 
             // Increase the range for the initial heights to get more variance
@@ -371,7 +375,7 @@ namespace CS5410
             terrainPoints[screenWidth - 1] = new Vector2(screenWidth - 1, screenHeight - profsRand.nextRange(initialRangeMin, initialRangeMax));
 
             // Increase the roughness factor to make the terrain more rugged
-            float roughnessFactor = 4.0f; 
+            float roughnessFactor = 15.0f;
 
             // Perform the midpoint displacement algorithm
             MidpointDisplacement(0, screenWidth - 1, maxTerrainHeight / 2, roughnessFactor);
@@ -428,7 +432,14 @@ namespace CS5410
             int midIndex = (leftIndex + rightIndex) / 2;
             float midpointHeight = (terrainPoints[leftIndex].Y + terrainPoints[rightIndex].Y) / 2;
             float displacement = (float)profsRand.nextGaussian(0, 1) * height * roughness;
-            terrainPoints[midIndex] = new Vector2(midIndex, MathHelper.Clamp(midpointHeight + displacement, 0, m_graphics.PreferredBackBufferHeight));
+
+            // Calculate the max allowable Y value for the terrain point
+            float maxYValue = screenHeight - (screenHeight * MaxTerrainHeight);
+
+            // Clamp the midpoint Y value to ensure it stays within the upper two-thirds of the screen
+            float clampedMidpointHeight = MathHelper.Clamp(midpointHeight + displacement, maxYValue, screenHeight);
+
+            terrainPoints[midIndex] = new Vector2(midIndex, clampedMidpointHeight);
 
             // Recursive calls, halve the height and roughness each time
             MidpointDisplacement(leftIndex, midIndex, height / 2, roughness / 2);
@@ -437,7 +448,6 @@ namespace CS5410
 
         private void FlattenLandingZone(int safeZoneStartX, int safeZoneEndX)
         {
-            int screenHeight = m_graphics.PreferredBackBufferHeight;
             float landingZoneY = terrainPoints[safeZoneStartX].Y;
             for (int i = safeZoneStartX; i <= safeZoneEndX; i++)
             {
@@ -451,20 +461,20 @@ namespace CS5410
 
         private void InterpolateTerrainToLandingZone(int safeZoneStartX, int safeZoneEndX)
         {
-            // Define the range over which we will interpolate the heights leading up to the landing zone
-            int interpolationRange = 20; // Adjust this value as needed for a smoother transition
+            // Define the range over which we will interpolate the heights
+            int interpolationRange = 20; // This can be adjusted for a smoother transition
 
             // Interpolate points before the landing zone
             if (safeZoneStartX > interpolationRange)
             {
                 float startHeight = terrainPoints[safeZoneStartX - interpolationRange].Y;
                 float endHeight = terrainPoints[safeZoneStartX].Y;
-                float heightDiff = endHeight - startHeight;
+                float heightDiff = startHeight - endHeight;
 
                 for (int i = 0; i < interpolationRange; i++)
                 {
-                    float fractionalHeight = heightDiff * (i / (float)interpolationRange);
-                    terrainPoints[safeZoneStartX - interpolationRange + i].Y = startHeight + fractionalHeight;
+                    float fractionalHeight = heightDiff * ((float)i / interpolationRange);
+                    terrainPoints[safeZoneStartX - i].Y = endHeight + fractionalHeight;
                 }
             }
 
@@ -477,7 +487,7 @@ namespace CS5410
 
                 for (int i = 1; i <= interpolationRange; i++)
                 {
-                    float fractionalHeight = heightDiff * (i / (float)interpolationRange);
+                    float fractionalHeight = heightDiff * ((float)i / interpolationRange);
                     terrainPoints[safeZoneEndX + i].Y = startHeight + fractionalHeight;
                 }
             }
@@ -496,7 +506,7 @@ namespace CS5410
             }
         }
 
-      
+
 
         #endregion
 
@@ -584,6 +594,41 @@ namespace CS5410
         {
             spriteBatch.Draw(m_pixel, new Rectangle((int)topLeft.X, (int)topLeft.Y, (int)(topRight.X - topLeft.X), (int)(bottomLeft.Y - topLeft.Y)), null, color, 0, Vector2.Zero, SpriteEffects.None, 0);
         }
+
+        private void DebugDrawLandingZones(SpriteBatch spriteBatch)
+        {
+            if (safeZoneStartXs.Count != safeZoneEndXs.Count)
+            {
+                throw new InvalidOperationException("The number of start and end points for landing zones should be the same.");
+            }
+
+            // Debug color and height for visibility
+            Color debugColor = Color.Magenta; // Use a bright color for debugging
+            int debugHeight = 10; // Height of the debug landing zone rectangle
+
+            for (int i = 0; i < safeZoneStartXs.Count; i++)
+            {
+                // Get the X coordinates for the landing zone
+                int startX = safeZoneStartXs[i];
+                int endX = safeZoneEndXs[i];
+
+                // Calculate the width of the landing zone
+                int width = endX - startX;
+
+                // If width is 0, there might be an error in landing zone calculation
+                if (width <= 0)
+                {
+                    continue; // Skip this iteration
+                }
+
+                // Calculate Y coordinate for the debug rectangle to be at the bottom of the screen
+                int yPosition = screenHeight - debugHeight;
+
+                // Draw the rectangle representing the landing zone
+                spriteBatch.Draw(m_pixel, new Rectangle(startX, yPosition, width, debugHeight), debugColor);
+            }
+        }
+
 
 
         private void DrawLine(SpriteBatch spriteBatch, Vector2 start, Vector2 end, Color color, int thickness)
