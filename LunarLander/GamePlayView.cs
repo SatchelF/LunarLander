@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace CS5410
 {
@@ -21,11 +22,10 @@ namespace CS5410
         private float m_landerRotation;
         private Vector2[] terrainPoints;
         private Random rand = new Random();
-        private const float MaxTerrainHeight = 1.0f / 3.0f;
+        private const float MaxTerrainHeight = 2.0f / 3.0f;
         private List<int> safeZoneStartXs;
         private List<int> safeZoneEndXs;
         private int numberOfLandingZones;
-        private const float LandingZonePadding = .5f;
         private List<Triangle> terrainTriangles = new List<Triangle>();
         private Vector2 m_velocity; // Velocity of the lander
         private Vector2 m_gravity; // Gravity applied to the lander
@@ -102,6 +102,7 @@ namespace CS5410
 
             if (keyboardState.IsKeyDown(Keys.Escape))
             {
+                currentLevel = 1;
                 return GameStateEnum.MainMenu;
             }
 
@@ -363,45 +364,21 @@ namespace CS5410
         private MyRandom profsRand = new MyRandom(); // Use your custom MyRandom class
         private void GenerateTerrain()
         {
-
-            int maxTerrainHeight = (int)(screenHeight * (2.0f / 3.0f));
-
-            // Increase the range for the initial heights to get more variance
-            float initialRangeMin = maxTerrainHeight / 2; // You can increase this
-            float initialRangeMax = maxTerrainHeight;     // You can increase this
+            int maxTerrainHeight = (int)(screenHeight * (1.0f / 3.0f));
+            float initialRangeMin = maxTerrainHeight / 2;
+            float initialRangeMax = maxTerrainHeight;
 
             terrainPoints = new Vector2[screenWidth];
             terrainPoints[0] = new Vector2(0, screenHeight - profsRand.nextRange(initialRangeMin, initialRangeMax));
             terrainPoints[screenWidth - 1] = new Vector2(screenWidth - 1, screenHeight - profsRand.nextRange(initialRangeMin, initialRangeMax));
 
-            // Increase the roughness factor to make the terrain more rugged
-            float roughnessFactor = 15.0f;
-
-            // Perform the midpoint displacement algorithm
+            float roughnessFactor = 20.0f;
             MidpointDisplacement(0, screenWidth - 1, maxTerrainHeight / 2, roughnessFactor);
 
             SetNumberOfLandingZones(currentLevel);
 
-            // Adjust landing zone generation to account for screen margins
-            int margin = (int)(screenWidth * 0.15); // 15% margin from sides
-            int usableWidth = screenWidth - 2 * margin; // Width minus margins
-            int segmentWidth = usableWidth / (numberOfLandingZones + 1);
-
-            safeZoneStartXs = new List<int>();
-            safeZoneEndXs = new List<int>();
-
-            // Determine landing zone size modifier based on the level
-            float landingZoneSizeModifier = currentLevel == 2 ? 0.25f : LandingZonePadding; // Smaller zones for level 2
-
-            for (int i = 0; i < numberOfLandingZones; i++)
-            {
-                int safeZoneWidth = (int)(segmentWidth * landingZoneSizeModifier);
-                int safeZoneStartX = margin + segmentWidth * i + (segmentWidth - safeZoneWidth) / 2;
-                int safeZoneEndX = safeZoneStartX + safeZoneWidth;
-
-                safeZoneStartXs.Add(Math.Max(safeZoneStartX, margin)); // Ensure it's within the margin
-                safeZoneEndXs.Add(Math.Min(safeZoneEndX, screenWidth - margin)); // Ensure it's within the margin
-            }
+            // New approach for determining the landing zones
+            GenerateRandomLandingZones();
 
             // Flatten the landing zones and interpolate terrain
             for (int i = 0; i < numberOfLandingZones; i++)
@@ -409,16 +386,41 @@ namespace CS5410
                 FlattenLandingZone(safeZoneStartXs[i], safeZoneEndXs[i]);
             }
 
-            // Clear previous terrain triangles and generate new ones
             terrainTriangles.Clear();
             for (int i = 0; i < terrainPoints.Length - 1; i++)
             {
                 Vector2 bottomLeft = new Vector2(terrainPoints[i].X, screenHeight);
                 Vector2 bottomRight = new Vector2(terrainPoints[i + 1].X, screenHeight);
 
-                terrainTriangles.Add(new Triangle(terrainPoints[i], terrainPoints[i], bottomLeft)); // This triangle is for the outline (top)
-                terrainTriangles.Add(new Triangle(terrainPoints[i], bottomLeft, bottomRight)); // This triangle is for the filled part
-                terrainTriangles.Add(new Triangle(terrainPoints[i], bottomRight, terrainPoints[i + 1])); // This triangle is for the outline (top)
+                terrainTriangles.Add(new Triangle(terrainPoints[i], terrainPoints[i + 1], bottomLeft));
+                terrainTriangles.Add(new Triangle(terrainPoints[i + 1], bottomLeft, bottomRight));
+            }
+        }
+
+        private void GenerateRandomLandingZones()
+        {
+
+            int landingZoneWidth = currentLevel == 1 ? 200 : 100;
+
+            // The fixed width for all landing zones
+            safeZoneStartXs = new List<int>();
+            safeZoneEndXs = new List<int>();
+
+            // Ensures that landing zones don't overlap
+            List<int> availablePositions = Enumerable.Range(0, screenWidth - landingZoneWidth).ToList();
+
+            for (int i = 0; i < numberOfLandingZones && availablePositions.Count > 0; i++)
+            {
+                int index = rand.Next(0, availablePositions.Count);
+                int safeZoneStartX = availablePositions[index];
+                int safeZoneEndX = safeZoneStartX + landingZoneWidth;
+
+                // Add the safe zone
+                safeZoneStartXs.Add(safeZoneStartX);
+                safeZoneEndXs.Add(safeZoneEndX);
+
+                // Remove the positions that are no longer available for landing zones to ensure no overlap
+                availablePositions.RemoveAll(x => x >= safeZoneStartX - landingZoneWidth && x <= safeZoneEndX + landingZoneWidth);
             }
         }
 
