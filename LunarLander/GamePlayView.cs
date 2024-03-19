@@ -6,7 +6,10 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
+using System.IO.IsolatedStorage;
+using System.IO;
 using System.Linq;
+using System.Runtime.Serialization.Json;
 
 namespace CS5410
 {
@@ -19,6 +22,7 @@ namespace CS5410
         private Texture2D m_background;
         private Texture2D m_lunarLander;
         private Texture2D m_pixel;
+        private HighScore currentScore;
         private Vector2 m_landerPosition;
         private float m_landerRotation;
         private Vector2[] terrainPoints;
@@ -55,6 +59,7 @@ namespace CS5410
         private ParticleSystem explosionParticleSystem;
         private ParticleSystemRenderer thrustRenderer;
         private ParticleSystemRenderer explosionRenderer;
+        private bool scoreSaved = false;
 
         #endregion
 
@@ -265,9 +270,14 @@ namespace CS5410
 
                         if (currentLevel == 2)
                         {
-                            // After completing Level 2, show victory message without a countdown
                             showVictoryMessage = true;
-                            // Do not automatically reset or proceed; wait for player input
+                            currentScore = CalculateScore();
+                            if (!scoreSaved)
+                            {
+                                SaveHighScore(currentScore);
+                                scoreSaved = true;
+                            }
+                            
                         }
                     }
                     else
@@ -298,33 +308,26 @@ namespace CS5410
 
 
             Vector2 statusPosition = new Vector2(m_graphics.PreferredBackBufferWidth - 300, 50);
-            Vector2 leftSidePosition = new Vector2(50, 50); // Adjust x and y as needed
+
 
             string levelText = $"Level: {currentLevel}";
             Color levelColor = Color.Goldenrod;
 
-            // Assuming you have a way to calculate or update score
-            string scoreText = $"Score: [Your Score Here]"; // Replace [Your Score Here] with actual score
-            Color scoreColor = Color.Goldenrod; // You can choose a different color if you like
-
-
             string fuelText = $"Fuel: {m_fuel / 3}";
             Color fuelColor = m_fuel > 0 ? Color.Green : Color.White;
 
-            
-            string verticalSpeedText = $"Vertical Speed: {m_verticalSpeed / 10} m/s";
+
+            string verticalSpeedText = $"Vertical Speed: {m_verticalSpeed / 10:F2} m/s";
             Color verticalSpeedColor = m_verticalSpeed > 20 ? Color.White : Color.Green;
 
             float angle = (MathHelper.ToDegrees(m_landerRotation) + 360) % 360;
-            string angleText = $"Angle: {angle}"; // Updated angle text
+            string angleText = $"Angle: {angle:F2}"; // Updated angle text
             Color angleColor = (angle > 5 && angle < 355) ? Color.White : Color.Green;
 
-
-
             // Draw level and score text
-            m_spriteBatch.DrawString(m_font, levelText, leftSidePosition, levelColor);
-            leftSidePosition.Y += m_font.LineSpacing; // Move down for the next piece of information
-            m_spriteBatch.DrawString(m_font, scoreText, leftSidePosition, scoreColor);
+            m_spriteBatch.DrawString(m_font, levelText, statusPosition, levelColor);
+            statusPosition.Y += m_font.LineSpacing; // Move down for the next piece of information
+
 
 
             // Draw the status text
@@ -385,21 +388,21 @@ namespace CS5410
 
                 if (successfulLanding && currentLevel == 2)
                 {
-                    messageText = "YOU WIN! - Press Enter to Restart or ESC for new game ";
+                    messageText = $"YOU WIN! Score: {currentScore.FuelRemaining} - Press Enter to Restart or ESC for new game ";
                     messageColor = Color.Goldenrod;
 
                 }
 
                 else if (successfulLanding)
                 {
-                    messageText = "Mission Success! - Press Enter to Continue ";
+                    messageText = $"Mission Success! - Press Enter to Continue ";
                     messageColor = Color.Green;
 
                 }
 
                 else
                 {
-                    messageText = "Mission Failed! - Press Enter to Restart";
+                    messageText = $"Mission Failed! - Press Enter to Restart";
                     messageColor = Color.Red;
                 }
 
@@ -674,6 +677,47 @@ namespace CS5410
 
             return isInSafeZone && isSpeedSafe && isAngleSafe;
         }
+
+        private HighScore CalculateScore()
+        {
+            
+            int fuelRemaining = m_fuel / 3 ;
+            return new HighScore(fuelRemaining);
+        }
+
+        private void SaveHighScore(HighScore highScore)
+        {
+            List<HighScore> highScores = LoadHighScores(); // Load existing scores
+            highScores.Add(highScore);
+            // Sort the list if desired, e.g., by timeToComplete or fuelRemaining
+
+            using (IsolatedStorageFile storage = IsolatedStorageFile.GetUserStoreForApplication())
+            {
+                using (IsolatedStorageFileStream stream = storage.OpenFile("HighScores.json", FileMode.Create))
+                {
+                    DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(List<HighScore>));
+                    serializer.WriteObject(stream, highScores);
+                }
+            }
+        }
+
+        private List<HighScore> LoadHighScores()
+        {
+            using (IsolatedStorageFile storage = IsolatedStorageFile.GetUserStoreForApplication())
+            {
+                if (!storage.FileExists("HighScores.json"))
+                {
+                    return new List<HighScore>(); // Return an empty list if the file doesn't exist
+                }
+
+                using (IsolatedStorageFileStream stream = storage.OpenFile("HighScores.json", FileMode.Open))
+                {
+                    DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(List<HighScore>));
+                    return (List<HighScore>)serializer.ReadObject(stream);
+                }
+            }
+        }
+
 
         #endregion
 

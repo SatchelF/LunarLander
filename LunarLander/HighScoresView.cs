@@ -2,13 +2,17 @@
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using System.Collections.Generic;
+using System.IO.IsolatedStorage;
+using System.IO;
+using System.Runtime.Serialization.Json;
 
 namespace CS5410
 {
     public class HighScoresView : GameStateView
     {
         private SpriteFont m_font;
-        private const string MESSAGE = "These are the high scores";
+        private const string MESSAGE = "Scores";
 
         public override void loadContent(ContentManager contentManager)
         {
@@ -29,9 +33,22 @@ namespace CS5410
         {
             m_spriteBatch.Begin();
 
-            Vector2 stringSize = m_font.MeasureString(MESSAGE);
-            m_spriteBatch.DrawString(m_font, MESSAGE,
-                new Vector2(m_graphics.PreferredBackBufferWidth / 2 - stringSize.X / 2, m_graphics.PreferredBackBufferHeight / 2 - stringSize.Y), Color.Yellow);
+            // Load high scores
+            List<HighScore> highScores = LoadHighScores();
+
+            Vector2 position = new Vector2(100, 100); // Starting position for high scores list
+
+            // Display the message
+            m_spriteBatch.DrawString(m_font, MESSAGE, new Vector2(m_graphics.PreferredBackBufferWidth / 2 - m_font.MeasureString(MESSAGE).X / 2, position.Y), Color.Yellow);
+            position.Y += 100; // Adjust spacing as needed
+
+            // Iterate through high scores and display them
+            foreach (var score in highScores)
+            {
+                string scoreText = $"Score: {score.FuelRemaining} Date: {score.Date}";
+                m_spriteBatch.DrawString(m_font, scoreText, position, Color.White);
+                position.Y += 50; // Increment Y position for the next score
+            }
 
             m_spriteBatch.End();
         }
@@ -39,5 +56,23 @@ namespace CS5410
         public override void update(GameTime gameTime)
         {
         }
+
+        private List<HighScore> LoadHighScores()
+        {
+            using (IsolatedStorageFile storage = IsolatedStorageFile.GetUserStoreForApplication())
+            {
+                if (!storage.FileExists("HighScores.json"))
+                {
+                    return new List<HighScore>(); // Return an empty list if the file doesn't exist
+                }
+
+                using (IsolatedStorageFileStream stream = storage.OpenFile("HighScores.json", FileMode.Open))
+                {
+                    DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(List<HighScore>));
+                    return (List<HighScore>)serializer.ReadObject(stream);
+                }
+            }
+        }
+
     }
 }
