@@ -415,7 +415,7 @@ namespace CS5410
                 string countdownText = Math.Ceiling(countdownTimer).ToString();
                 Vector2 countdownPosition = new Vector2(m_graphics.PreferredBackBufferWidth / 2, m_graphics.PreferredBackBufferHeight / 2 + 100);
                 // Adjust the position as needed
-                m_spriteBatch.DrawString(m_font, countdownText, countdownPosition, Color.White);
+                m_spriteBatch.DrawString(m_Bigfont, countdownText, countdownPosition, Color.White);
             }
 
 
