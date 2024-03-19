@@ -46,6 +46,7 @@ namespace CS5410
         private bool showVictoryMessage = false; // Flag to control victory message display
         private int screenHeight;
         private int screenWidth;
+        private MyRandom profsRand = new MyRandom(); // Use your custom MyRandom class
         #endregion
 
         #region Game Loop
@@ -166,12 +167,14 @@ namespace CS5410
         {
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-            // Apply gravity to the lander's velocity
-            m_velocity += m_gravity * deltaTime;
+            
 
             // Update the lander's position
-            if (!successfulLanding) // Only update position if the landing is not successful yet
+            if (!GameOver)
             {
+                m_velocity += m_gravity * deltaTime;
+
+                // Update the lander's position only if the landing is not successful yet
                 m_landerPosition += m_velocity * deltaTime;
                 // Calculate the vertical speed for display (adjust as necessary for your logic)
                 m_verticalSpeed = m_velocity.Y;
@@ -361,21 +364,29 @@ namespace CS5410
 
         #region Terrain Generation
 
-        private MyRandom profsRand = new MyRandom(); // Use your custom MyRandom class
+        
         private void GenerateTerrain()
         {
             int maxTerrainHeight = (int)(screenHeight * (1.0f / 3.0f));
             float initialRangeMin = maxTerrainHeight / 2;
             float initialRangeMax = maxTerrainHeight;
 
-            terrainPoints = new Vector2[screenWidth];
+            // Increase the number of terrain points for more detail
+
+            terrainPoints = new Vector2[screenWidth ]; // Adjust array size accordingly
+
+            // Initial end points
             terrainPoints[0] = new Vector2(0, screenHeight - profsRand.nextRange(initialRangeMin, initialRangeMax));
-            terrainPoints[screenWidth - 1] = new Vector2(screenWidth - 1, screenHeight - profsRand.nextRange(initialRangeMin, initialRangeMax));
+            terrainPoints[terrainPoints.Length - 1] = new Vector2(screenWidth - 1, screenHeight - profsRand.nextRange(initialRangeMin, initialRangeMax));
 
-            float roughnessFactor = 20.0f;
-            MidpointDisplacement(0, screenWidth - 1, maxTerrainHeight / 2, roughnessFactor);
+            // Adjusted roughness factor for more points
+            float roughnessFactor = 100.0f;  
 
-            SetNumberOfLandingZones(currentLevel);
+            // Run midpoint displacement for higher resolution
+            MidpointDisplacement(0, terrainPoints.Length - 1, maxTerrainHeight / 2, roughnessFactor);
+
+
+            SetNumberOfLandingZones(currentLevel); ;
 
             // New approach for determining the landing zones
             GenerateRandomLandingZones();
@@ -399,15 +410,17 @@ namespace CS5410
 
         private void GenerateRandomLandingZones()
         {
-
             int landingZoneWidth = currentLevel == 1 ? 200 : 100;
 
-            // The fixed width for all landing zones
+            // Calculate the margins to keep landing zones at least 15% away from the screen sides
+            int sideMargin = (int)(screenWidth * 0.15);
+            int effectiveScreenWidth = screenWidth - 2 * sideMargin - landingZoneWidth;
+
             safeZoneStartXs = new List<int>();
             safeZoneEndXs = new List<int>();
 
-            // Ensures that landing zones don't overlap
-            List<int> availablePositions = Enumerable.Range(0, screenWidth - landingZoneWidth).ToList();
+            // Adjusted to ensure landing zones start within the effective screen width, keeping the 15% margin
+            List<int> availablePositions = Enumerable.Range(sideMargin, effectiveScreenWidth).ToList();
 
             for (int i = 0; i < numberOfLandingZones && availablePositions.Count > 0; i++)
             {
@@ -415,7 +428,6 @@ namespace CS5410
                 int safeZoneStartX = availablePositions[index];
                 int safeZoneEndX = safeZoneStartX + landingZoneWidth;
 
-                // Add the safe zone
                 safeZoneStartXs.Add(safeZoneStartX);
                 safeZoneEndXs.Add(safeZoneEndX);
 
@@ -450,47 +462,57 @@ namespace CS5410
 
         private void FlattenLandingZone(int safeZoneStartX, int safeZoneEndX)
         {
-            float landingZoneY = terrainPoints[safeZoneStartX].Y;
+            // Calculate the average height of the terrain to place the landing zones
+            float totalHeight = 0;
+            int pointCount = 0;
+            for (int i = 0; i < terrainPoints.Length; i++)
+            {
+                totalHeight += terrainPoints[i].Y;
+                pointCount++;
+            }
+            float averageTerrainHeight = totalHeight / pointCount;
+
+            // Ensure landing zones are positioned at a reasonable height
+            // You might want to adjust this logic to suit your game's design better
+            float landingZoneY = Math.Max(averageTerrainHeight, screenHeight * (2.0f / 3.0f));
+
             for (int i = safeZoneStartX; i <= safeZoneEndX; i++)
             {
-                // Ensure landing zones do not go below the screen by limiting their Y value
-                terrainPoints[i].Y = Math.Min(landingZoneY, screenHeight - 1); // Ensure Y-value is above the screen bottom
+                terrainPoints[i].Y = landingZoneY;
             }
 
-            // Gradually adjust the terrain leading up to the landing zones to prevent sharp edges.
-            InterpolateTerrainToLandingZone(safeZoneStartX, safeZoneEndX);
+            // Gradually adjust the terrain leading up to and after the landing zones to prevent sharp edges
+             InterpolateTerrainToLandingZone(safeZoneStartX, safeZoneEndX);
         }
 
         private void InterpolateTerrainToLandingZone(int safeZoneStartX, int safeZoneEndX)
         {
-            // Define the range over which we will interpolate the heights
-            int interpolationRange = 20; // This can be adjusted for a smoother transition
+            // The range over which we will interpolate heights to smooth out the terrain
+            int interpolationRange = 70; // Increase this for smoother transitions
 
-            // Interpolate points before the landing zone
+            // Interpolate points before the landing zone for a smoother approach
             if (safeZoneStartX > interpolationRange)
             {
                 float startHeight = terrainPoints[safeZoneStartX - interpolationRange].Y;
                 float endHeight = terrainPoints[safeZoneStartX].Y;
-                float heightDiff = startHeight - endHeight;
-
                 for (int i = 0; i < interpolationRange; i++)
                 {
-                    float fractionalHeight = heightDiff * ((float)i / interpolationRange);
-                    terrainPoints[safeZoneStartX - i].Y = endHeight + fractionalHeight;
+                    float fraction = (float)i / interpolationRange;
+                    float smoothedHeight = startHeight + (endHeight - startHeight) * fraction;
+                    terrainPoints[safeZoneStartX - interpolationRange + i].Y = smoothedHeight;
                 }
             }
 
-            // Interpolate points after the landing zone
+            // Interpolate points after the landing zone for a smoother departure
             if (safeZoneEndX < terrainPoints.Length - interpolationRange)
             {
                 float startHeight = terrainPoints[safeZoneEndX].Y;
                 float endHeight = terrainPoints[safeZoneEndX + interpolationRange].Y;
-                float heightDiff = endHeight - startHeight;
-
-                for (int i = 1; i <= interpolationRange; i++)
+                for (int i = 0; i < interpolationRange; i++)
                 {
-                    float fractionalHeight = heightDiff * ((float)i / interpolationRange);
-                    terrainPoints[safeZoneEndX + i].Y = startHeight + fractionalHeight;
+                    float fraction = (float)i / interpolationRange;
+                    float smoothedHeight = startHeight + (endHeight - startHeight) * fraction;
+                    terrainPoints[safeZoneEndX + i].Y = smoothedHeight;
                 }
             }
         }
