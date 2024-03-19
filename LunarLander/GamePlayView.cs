@@ -50,6 +50,11 @@ namespace CS5410
         private int screenHeight;
         private int screenWidth;
         private MyRandom profsRand = new MyRandom(); // Use your custom MyRandom class
+        private ParticleSystem thrustParticleSystem;
+        private ParticleSystem explosionParticleSystem;
+        private ParticleSystemRenderer thrustRenderer;
+        private ParticleSystemRenderer explosionRenderer;
+
         #endregion
 
         #region Game Loop
@@ -64,6 +69,14 @@ namespace CS5410
             thrustSound = contentManager.Load<SoundEffect>("lunar_booster");
             landerLoseSound = contentManager.Load<SoundEffect>("lander_lose_sound");
             landerWinSound = contentManager.Load<SoundEffect>("lander_win_sound");
+            thrustParticleSystem = new ParticleSystem(new Vector2(0, 0), 2, 1, 0.2f, 0.1f, 300, 150);
+            explosionParticleSystem = new ParticleSystem(new Vector2(0, 0), 4, 2, 0.5f, 0.25f, 1000, 500);
+
+            thrustRenderer = new ParticleSystemRenderer("square");
+            explosionRenderer = new ParticleSystemRenderer("square");
+
+            thrustRenderer.LoadContent(contentManager);
+            explosionRenderer.LoadContent(contentManager);
             thrustSoundInstance = thrustSound.CreateInstance();
             thrustSoundInstance.IsLooped = true;
             m_pixel = new Texture2D(m_graphics.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
@@ -154,9 +167,21 @@ namespace CS5410
                 }
 
                 m_fuel -= 1;
-
+                // Calculate the thrust direction based on the lander's current rotation
                 Vector2 thrustDirection = new Vector2(-(float)Math.Sin(m_landerRotation), (float)Math.Cos(m_landerRotation));
+
+                // Apply the thrust force to the lander's velocity
                 m_velocity += thrustDirection * Thrust * (float)gameTime.ElapsedGameTime.TotalSeconds;
+
+                // Assuming the lander's origin for drawing is its center
+                Vector2 landerSize = new Vector2(m_lunarLander.Width * 0.3f, m_lunarLander.Height * 0.3f); // Adjust the 0.3f if your scale is different
+                float landerHeight = landerSize.Y;
+
+                // Calculate the position at the bottom of the lander where the particles should emit
+               
+
+                // Emit the thrust particles from the calculated position
+                thrustParticleSystem.ShipThrust(m_landerPosition, thrustDirection, m_landerRotation, landerHeight / 3); // Pass the full height for the landerSize parameter
             }
             else
             {
@@ -184,6 +209,17 @@ namespace CS5410
                 m_landerPosition += m_velocity * deltaTime;
                 // Calculate the vertical speed for display (adjust as necessary for your logic)
                 m_verticalSpeed = m_velocity.Y;
+            }
+
+
+            if (thrustParticleSystem != null)
+            {
+                thrustParticleSystem.update(gameTime);
+            }
+
+            if (explosionParticleSystem != null)
+            {
+                explosionParticleSystem.update(gameTime);
             }
 
 
@@ -369,6 +405,22 @@ namespace CS5410
             }
 
 
+            m_spriteBatch.End(); // End the batch before drawing particles
+
+            // Begin a new SpriteBatch process specifically for rendering particles.
+            m_spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.Additive);
+
+            if (thrustParticleSystem != null && !GameOver)
+            {
+                thrustRenderer.draw(m_spriteBatch, thrustParticleSystem);
+            }
+
+            if (explosionParticleSystem != null && GameOver && !successfulLanding)
+            {
+                explosionRenderer.draw(m_spriteBatch, explosionParticleSystem);
+            }
+
+            // End the SpriteBatch process for particle rendering.
             m_spriteBatch.End();
         }
 
@@ -595,6 +647,7 @@ namespace CS5410
             {
                 destructionSound.Play();
                 landerLoseSound.Play();
+                explosionParticleSystem.ShipCrash(m_landerPosition); // Trigger explosion at lander's position
                 explosionSoundPlayed = true;
             }
         }
