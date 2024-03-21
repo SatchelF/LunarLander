@@ -10,6 +10,7 @@ using System.IO.IsolatedStorage;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Json;
+using CS5410.Input;
 
 namespace CS5410
 {
@@ -18,11 +19,13 @@ namespace CS5410
         #region Fields
 
         private SpriteFont m_font;
+        private bool isThrustKeyPressed = false;
         private SpriteFont m_Bigfont;
         private Texture2D m_background;
         private Texture2D m_lunarLander;
         private Texture2D m_pixel;
         private HighScore currentScore;
+        private KeyboardInput keyboardInput;
         private Vector2 m_landerPosition;
         private float m_landerRotation;
         private Vector2[] terrainPoints;
@@ -95,6 +98,10 @@ namespace CS5410
 
         private void InitializeNewGame()
         {
+            keyboardInput = new KeyboardInput();
+            keyboardInput.registerCommand(Keys.Up, false, onThrust);
+            keyboardInput.registerCommand(Keys.Left, false, onRotateLeft);
+            keyboardInput.registerCommand(Keys.Right, false, onRotateRight);
             screenHeight = m_graphics.PreferredBackBufferHeight;
             screenWidth = m_graphics.PreferredBackBufferWidth;
             int maxY = screenHeight / 5;
@@ -125,53 +132,64 @@ namespace CS5410
 
         public override GameStateEnum processInput(GameTime gameTime)
         {
+            // Process registered commands (like thrust and rotation)
+            keyboardInput.Update(gameTime);
+
             var keyboardState = Keyboard.GetState();
 
+            // Determine the current state of the thrust key
+            isThrustKeyPressed = keyboardState.IsKeyDown(Keys.Up);
+
+
+            // Handling escape key for returning to the main menu
             if (keyboardState.IsKeyDown(Keys.Escape))
             {
+                return handleEscapeKey();
+            }
+
+            // Handling game over scenario with Enter key
+            if (GameOver && keyboardState.IsKeyDown(Keys.Enter))
+            {
+                return handleGameOver();
+            }
+
+            // If additional direct keyboard input checks are required, they can be added here.
+            // However, for actions like thrust and rotation, rely on the registered commands within the KeyboardInput system.
+
+            return GameStateEnum.GamePlay; // Default return to keep the game state on GamePlay if no state change is triggered
+        }
+
+        private GameStateEnum handleEscapeKey()
+        {
+            currentLevel = 1; // Reset to level 1
+            return GameStateEnum.MainMenu; // Change state to main menu
+        }
+
+        private GameStateEnum handleGameOver()
+        {
+            // Decide whether to reset to level 1 or advance to the next level based on the outcome
+            if (!successfulLanding || currentLevel == 2)
+            {
+                // If landing was not successful or it was the last level, reset to level 1
                 currentLevel = 1;
-                return GameStateEnum.MainMenu;
+            }
+            else
+            {
+                // Otherwise, move to the next level
+                currentLevel++;
             }
 
-            if (GameOver)
+            // Reset game state for the new game
+            InitializeNewGame();
+            GameOver = false; // Clear the game over flag
+
+            return GameStateEnum.GamePlay; // Keep the game state on GamePlay
+        }
+
+        private void onThrust(GameTime gameTime, float value)
+        {
+            if (m_fuel > 0)
             {
-                if (keyboardState.IsKeyDown(Keys.Enter))
-                {
-                    if (!successfulLanding || currentLevel == 2)
-                    {
-                        currentLevel = 1; // Reset to level 1 if the game was not successful or if it was the last level
-                    }
-                    else
-                    {
-                        currentLevel++; // Move to next level if successful
-                    }
-                    InitializeNewGame(); // Initialize game based on the current level
-                    GameOver = false; // Reset the game over flag
-                }
-                return GameStateEnum.GamePlay; // Keep the game state on GamePlay
-            }
-
-
-
-            if (keyboardState.IsKeyDown(Keys.Left))
-            {
-                m_landerRotation -= RotationSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds;
-                m_landerRotation = (m_landerRotation + MathHelper.TwoPi) % MathHelper.TwoPi;
-            }
-
-            // Rotate Right
-            if (keyboardState.IsKeyDown(Keys.Right))
-            {
-                m_landerRotation += RotationSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds;
-                m_landerRotation = (m_landerRotation + MathHelper.TwoPi) % MathHelper.TwoPi;
-            }
-
-            if (keyboardState.IsKeyDown(Keys.Up) && m_fuel > 0)
-            {
-                if (thrustSoundInstance.State != SoundState.Playing)
-                {
-                    thrustSoundInstance.Play(); // Play the sound only if not already playing
-                }
 
                 m_fuel -= 1;
                 // Calculate the thrust direction based on the lander's current rotation
@@ -185,27 +203,47 @@ namespace CS5410
                 float landerHeight = landerSize.Y;
 
                 // Calculate the position at the bottom of the lander where the particles should emit
-               
+
 
                 // Emit the thrust particles from the calculated position
                 thrustParticleSystem.ShipThrust(m_landerPosition, thrustDirection, m_landerRotation, landerHeight / 3); // Pass the full height for the landerSize parameter
-            }
-            else
-            {
-                if (thrustSoundInstance.State == SoundState.Playing)
-                {
-                    thrustSoundInstance.Stop(); // Stop the sound if the up key is released or fuel is depleted
-                }
-            }
 
-            return GameStateEnum.GamePlay;
+                // Ensure the sound logic is correct
+            }   
+        }
+
+
+        private void onRotateLeft(GameTime gameTime, float value)
+        {
+            m_landerRotation -= RotationSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds;
+            m_landerRotation = (m_landerRotation + MathHelper.TwoPi) % MathHelper.TwoPi;
+        }
+
+        private void onRotateRight(GameTime gameTime, float value)
+        {
+            m_landerRotation += RotationSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds;
+            m_landerRotation = (m_landerRotation + MathHelper.TwoPi) % MathHelper.TwoPi;
         }
 
         public override void update(GameTime gameTime)
         {
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-            
+            if (isThrustKeyPressed && m_fuel > 0)
+            {
+                if (thrustSoundInstance.State != SoundState.Playing)
+                {
+                    thrustSoundInstance.Play();
+                }
+                // Apply thrust logic here if not using onThrust
+            }
+            else
+            {
+                if (thrustSoundInstance.State == SoundState.Playing)
+                {
+                    thrustSoundInstance.Stop();
+                }
+            }
 
             // Update the lander's position
             if (!GameOver)
@@ -390,6 +428,10 @@ namespace CS5410
                 {
                     messageText = $"YOU WIN! Score: {currentScore.FuelRemaining} - Press Enter to Restart or ESC for new game ";
                     messageColor = Color.Goldenrod;
+                    if (thrustSoundInstance.State == SoundState.Playing)
+                    {
+                        thrustSoundInstance.Stop(); // Stop the sound if the up key is released or fuel is depleted
+                    }
 
                 }
 
@@ -397,6 +439,10 @@ namespace CS5410
                 {
                     messageText = $"Mission Success! - Press Enter to Continue ";
                     messageColor = Color.Green;
+                    if (thrustSoundInstance.State == SoundState.Playing)
+                    {
+                        thrustSoundInstance.Stop(); // Stop the sound if the up key is released or fuel is depleted
+                    }
 
                 }
 
@@ -404,6 +450,10 @@ namespace CS5410
                 {
                     messageText = $"Mission Failed! - Press Enter to Restart";
                     messageColor = Color.Red;
+                    if (thrustSoundInstance.State == SoundState.Playing)
+                    {
+                        thrustSoundInstance.Stop(); // Stop the sound if the up key is released or fuel is depleted
+                    }
                 }
 
                 Vector2 textSize = m_font.MeasureString(messageText);
