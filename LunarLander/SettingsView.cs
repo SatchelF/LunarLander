@@ -137,11 +137,11 @@ namespace CS5410
                 else if (changingControl == controlNames[i] && currentState == SettingsState.Changing)
                 {
                     text += " (press new key)";
-                    textColor = Color.Red; // Also make it red if it's currently being changed
+                    textColor = Color.Red; //ake it red if it's currently being changed
                 }
 
                 m_spriteBatch.DrawString(m_font, text, position, textColor);
-                position.Y += 100; // Move down for the next item
+                position.Y += 100; 
             }
 
             Vector2 stringSize = m_font.MeasureString(MESSAGE);
@@ -152,7 +152,7 @@ namespace CS5410
 
         public override void update(GameTime gameTime)
         {
-            // Update logic if needed
+            
         }
     }
 }

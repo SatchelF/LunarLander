@@ -34,6 +34,8 @@ namespace CS5410
         private List<int> safeZoneStartXs;
         private List<int> safeZoneEndXs;
         private int numberOfLandingZones;
+        private int fuelRemainingLevel1 = MaxFuel; // Track remaining fuel for level 1
+        private int fuelRemainingLevel2 = MaxFuel; // Track remaining fuel for level 2
         private List<Triangle> terrainTriangles = new List<Triangle>();
         private Vector2 m_velocity; // Velocity of the lander
         private Vector2 m_gravity; // Gravity applied to the lander
@@ -110,17 +112,17 @@ namespace CS5410
             explosionSoundPlayed = false;
             int maxX = 5 * screenWidth / 6;
             m_velocity = Vector2.Zero; // Start with no movement
-            m_gravity = new Vector2(0, 10.00f); // Downward gravity. Adjust as needed.
+            m_gravity = new Vector2(0, 8.00f); // Downward gravity.
             GameOver = false;
             successfulLanding = false;
             showCountdown = false; // Make sure countdown does not start at the beginning
-            countdownTimer = 3.0f; // Reset for when we do need it
+            countdownTimer = 3.0f; 
             sucessSoundPlayed = false;
 
             int randomX = rand.Next(minX, maxX);
             int randomY = rand.Next(minY, maxY);
             m_landerPosition = new Vector2(randomX, randomY);
-            m_fuel = MaxFuel; // Set initial fuel to maximum capacity
+            m_fuel = MaxFuel; 
 
             m_landerRotation = rand.Next(2) == 0 ? MathHelper.PiOver2 : -MathHelper.PiOver2;
 
@@ -132,42 +134,37 @@ namespace CS5410
 
         public override GameStateEnum processInput(GameTime gameTime)
         {
-            // Process registered commands (like thrust and rotation)
+
             keyboardInput.Update(gameTime);
 
             var keyboardState = Keyboard.GetState();
 
-            // Determine the current state of the thrust key
             isThrustKeyPressed = keyboardState.IsKeyDown(Keys.Up);
 
 
-            // Handling escape key for returning to the main menu
             if (keyboardState.IsKeyDown(Keys.Escape))
             {
                 return handleEscapeKey();
             }
 
-            // Handling game over scenario with Enter key
             if (GameOver && keyboardState.IsKeyDown(Keys.Enter))
             {
                 return handleGameOver();
             }
 
-            // If additional direct keyboard input checks are required, they can be added here.
-            // However, for actions like thrust and rotation, rely on the registered commands within the KeyboardInput system.
 
-            return GameStateEnum.GamePlay; // Default return to keep the game state on GamePlay if no state change is triggered
+            return GameStateEnum.GamePlay; 
         }
 
         private GameStateEnum handleEscapeKey()
         {
-            currentLevel = 1; // Reset to level 1
-            return GameStateEnum.MainMenu; // Change state to main menu
+            currentLevel = 1; 
+            return GameStateEnum.MainMenu; 
         }
 
         private GameStateEnum handleGameOver()
         {
-            // Decide whether to reset to level 1 or advance to the next level based on the outcome
+            
             if (!successfulLanding || currentLevel == 2)
             {
                 // If landing was not successful or it was the last level, reset to level 1
@@ -188,41 +185,58 @@ namespace CS5410
 
         private void onThrust(GameTime gameTime, float value)
         {
-            if (m_fuel > 0)
+            if (!successfulLanding)
             {
 
-                m_fuel -= 1;
-                // Calculate the thrust direction based on the lander's current rotation
-                Vector2 thrustDirection = new Vector2(-(float)Math.Sin(m_landerRotation), (float)Math.Cos(m_landerRotation));
+                if (m_fuel > 0)
+                {
 
-                // Apply the thrust force to the lander's velocity
-                m_velocity += thrustDirection * Thrust * (float)gameTime.ElapsedGameTime.TotalSeconds;
+                    m_fuel -= 1;
+                    // thrust direction based on the lander's current rotation
+                    Vector2 thrustDirection = new Vector2(-(float)Math.Sin(m_landerRotation), (float)Math.Cos(m_landerRotation));
 
-                // Assuming the lander's origin for drawing is its center
-                Vector2 landerSize = new Vector2(m_lunarLander.Width * 0.3f, m_lunarLander.Height * 0.3f); // Adjust the 0.3f if your scale is different
-                float landerHeight = landerSize.Y;
-
-                // Calculate the position at the bottom of the lander where the particles should emit
+                    // Apply the thrust force to the lander's velocity
+                    m_velocity += thrustDirection * Thrust * (float)gameTime.ElapsedGameTime.TotalSeconds;
 
 
-                // Emit the thrust particles from the calculated position
-                thrustParticleSystem.ShipThrust(m_landerPosition, thrustDirection, m_landerRotation, landerHeight / 3); // Pass the full height for the landerSize parameter
+                    Vector2 landerSize = new Vector2(m_lunarLander.Width * 0.3f, m_lunarLander.Height * 0.3f); // Adjust the 0.3f if your scale is different
+                    float landerHeight = landerSize.Y;
 
-                // Ensure the sound logic is correct
-            }   
+                    // Emit the thrust particles from the calculated position
+                    thrustParticleSystem.ShipThrust(m_landerPosition, thrustDirection, m_landerRotation, landerHeight / 3); // Pass the full height for the landerSize parameter
+
+                    if (currentLevel == 1)
+                    {
+                        fuelRemainingLevel1 = m_fuel / 3;
+                    }
+                    else if (currentLevel == 2)
+                    {
+                        fuelRemainingLevel2 = m_fuel / 3;
+                    }
+                }
+
+            }
         }
 
 
         private void onRotateLeft(GameTime gameTime, float value)
         {
-            m_landerRotation -= RotationSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds;
-            m_landerRotation = (m_landerRotation + MathHelper.TwoPi) % MathHelper.TwoPi;
+            if (!successfulLanding)
+            {
+
+                m_landerRotation -= RotationSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds;
+                m_landerRotation = (m_landerRotation + MathHelper.TwoPi) % MathHelper.TwoPi;
+
+            }
         }
 
         private void onRotateRight(GameTime gameTime, float value)
         {
-            m_landerRotation += RotationSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds;
-            m_landerRotation = (m_landerRotation + MathHelper.TwoPi) % MathHelper.TwoPi;
+            if (!successfulLanding)
+            {
+                m_landerRotation += RotationSpeed * (float)gameTime.ElapsedGameTime.TotalSeconds;
+                m_landerRotation = (m_landerRotation + MathHelper.TwoPi) % MathHelper.TwoPi;
+            }
         }
 
         public override void update(GameTime gameTime)
@@ -235,7 +249,7 @@ namespace CS5410
                 {
                     thrustSoundInstance.Play();
                 }
-                // Apply thrust logic here if not using onThrust
+
             }
             else
             {
@@ -252,7 +266,6 @@ namespace CS5410
 
                 // Update the lander's position only if the landing is not successful yet
                 m_landerPosition += m_velocity * deltaTime;
-                // Calculate the vertical speed for display (adjust as necessary for your logic)
                 m_verticalSpeed = m_velocity.Y;
             }
 
@@ -281,7 +294,7 @@ namespace CS5410
                         InitializeNewGame();
                     }
                 }
-                return; // Skip other updates during countdown
+                return; 
             }
 
             for (int i = 0; i < terrainPoints.Length - 1; i++)
@@ -299,7 +312,7 @@ namespace CS5410
 ;                           sucessSoundPlayed = true;
                         }
 
-                        if (currentLevel < 2) // Assuming 2 is the last level for example
+                        if (currentLevel < 2) 
                         {
                             showCountdown = true; // Start countdown for next level
                             countdownTimer = 3.0f; // Reset countdown timer
@@ -359,12 +372,12 @@ namespace CS5410
             Color verticalSpeedColor = m_verticalSpeed > 20 ? Color.White : Color.Green;
 
             float angle = (MathHelper.ToDegrees(m_landerRotation) + 360) % 360;
-            string angleText = $"Angle: {angle:F2}"; // Updated angle text
+            string angleText = $"Angle: {angle:F2}"; 
             Color angleColor = (angle > 5 && angle < 355) ? Color.White : Color.Green;
 
             // Draw level and score text
             m_spriteBatch.DrawString(m_font, levelText, statusPosition, levelColor);
-            statusPosition.Y += m_font.LineSpacing; // Move down for the next piece of information
+            statusPosition.Y += m_font.LineSpacing; 
 
 
 
@@ -467,14 +480,13 @@ namespace CS5410
                 // Display countdown
                 string countdownText = Math.Ceiling(countdownTimer).ToString();
                 Vector2 countdownPosition = new Vector2(m_graphics.PreferredBackBufferWidth / 2, m_graphics.PreferredBackBufferHeight / 2 + 100);
-                // Adjust the position as needed
                 m_spriteBatch.DrawString(m_Bigfont, countdownText, countdownPosition, Color.White);
             }
 
 
-            m_spriteBatch.End(); // End the batch before drawing particles
+            m_spriteBatch.End(); 
 
-            // Begin a new SpriteBatch process specifically for rendering particles.
+
             m_spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.Additive);
 
             if (thrustParticleSystem != null && !GameOver)
@@ -487,7 +499,7 @@ namespace CS5410
                 explosionRenderer.draw(m_spriteBatch, explosionParticleSystem);
             }
 
-            // End the SpriteBatch process for particle rendering.
+
             m_spriteBatch.End();
         }
 
@@ -502,24 +514,24 @@ namespace CS5410
             float initialRangeMin = maxTerrainHeight / 2;
             float initialRangeMax = maxTerrainHeight;
 
-            // Increase the number of terrain points for more detail
 
-            terrainPoints = new Vector2[screenWidth ]; // Adjust array size accordingly
+
+            terrainPoints = new Vector2[screenWidth ];
 
             // Initial end points
             terrainPoints[0] = new Vector2(0, screenHeight - profsRand.nextRange(initialRangeMin, initialRangeMax));
             terrainPoints[terrainPoints.Length - 1] = new Vector2(screenWidth - 1, screenHeight - profsRand.nextRange(initialRangeMin, initialRangeMax));
 
-            // Adjusted roughness factor for more points
+
             float roughnessFactor = 50.0f;  
 
-            // Run midpoint displacement for higher resolution
+
             MidpointDisplacement(0, terrainPoints.Length - 1, maxTerrainHeight / 2, roughnessFactor);
 
 
             SetNumberOfLandingZones(currentLevel); ;
 
-            // New approach for determining the landing zones
+
             GenerateRandomLandingZones();
 
             // Flatten the landing zones and interpolate terrain
@@ -543,14 +555,13 @@ namespace CS5410
         {
             int landingZoneWidth = currentLevel == 1 ? 200 : 100;
 
-            // Calculate the margins to keep landing zones at least 15% away from the screen sides
+            //  keep landing zones at least 15% away from the screen sides
             int sideMargin = (int)(screenWidth * 0.15);
             int effectiveScreenWidth = screenWidth - 2 * sideMargin - landingZoneWidth;
 
             safeZoneStartXs = new List<int>();
             safeZoneEndXs = new List<int>();
 
-            // Adjusted to ensure landing zones start within the effective screen width, keeping the 15% margin
             List<int> availablePositions = Enumerable.Range(sideMargin, effectiveScreenWidth).ToList();
 
             for (int i = 0; i < numberOfLandingZones && availablePositions.Count > 0; i++)
@@ -562,7 +573,7 @@ namespace CS5410
                 safeZoneStartXs.Add(safeZoneStartX);
                 safeZoneEndXs.Add(safeZoneEndX);
 
-                // Remove the positions that are no longer available for landing zones to ensure no overlap
+                // no overlap
                 availablePositions.RemoveAll(x => x >= safeZoneStartX - landingZoneWidth && x <= safeZoneEndX + landingZoneWidth);
             }
         }
@@ -578,10 +589,10 @@ namespace CS5410
             float midpointHeight = (terrainPoints[leftIndex].Y + terrainPoints[rightIndex].Y) / 2;
             float displacement = (float)profsRand.nextGaussian(0, 1) * height * roughness;
 
-            // Calculate the max allowable Y value for the terrain point
+            //  max allowable Y value 
             float maxYValue = screenHeight - (screenHeight * MaxTerrainHeight);
 
-            // Clamp the midpoint Y value to ensure it stays within the upper two-thirds of the screen
+            // Clamp 
             float clampedMidpointHeight = MathHelper.Clamp(midpointHeight + displacement, maxYValue, screenHeight);
 
             terrainPoints[midIndex] = new Vector2(midIndex, clampedMidpointHeight);
@@ -593,7 +604,7 @@ namespace CS5410
 
         private void FlattenLandingZone(int safeZoneStartX, int safeZoneEndX)
         {
-            // Calculate the average height of the terrain to place the landing zones
+
             float totalHeight = 0;
             int pointCount = 0;
             for (int i = 0; i < terrainPoints.Length; i++)
@@ -604,7 +615,6 @@ namespace CS5410
             float averageTerrainHeight = totalHeight / pointCount;
 
             // Ensure landing zones are positioned at a reasonable height
-            // You might want to adjust this logic to suit your game's design better
             float landingZoneY = Math.Max(averageTerrainHeight, screenHeight * (2.0f / 3.0f));
 
             for (int i = safeZoneStartX; i <= safeZoneEndX; i++)
@@ -618,10 +628,8 @@ namespace CS5410
 
         private void InterpolateTerrainToLandingZone(int safeZoneStartX, int safeZoneEndX)
         {
-            // The range over which we will interpolate heights to smooth out the terrain
-            int interpolationRange = 70; // Increase this for smoother transitions
+            int interpolationRange = 70; 
 
-            // Interpolate points before the landing zone for a smoother approach
             if (safeZoneStartX > interpolationRange)
             {
                 float startHeight = terrainPoints[safeZoneStartX - interpolationRange].Y;
@@ -634,7 +642,7 @@ namespace CS5410
                 }
             }
 
-            // Interpolate points after the landing zone for a smoother departure
+            //  smoother
             if (safeZoneEndX < terrainPoints.Length - interpolationRange)
             {
                 float startHeight = terrainPoints[safeZoneEndX].Y;
@@ -650,7 +658,7 @@ namespace CS5410
 
         public void SetNumberOfLandingZones(int level)
         {
-            // Adjust this method to set the number of landing zones based on the level
+
             if (level == 1)
             {
                 numberOfLandingZones = 2;
@@ -715,24 +723,24 @@ namespace CS5410
                 }
             }
 
-            // Check the vertical speed is less than 2 m/s
+            // vertical speed is less than 2 m/s
             bool isSpeedSafe = Math.Abs(m_velocity.Y) < 20;
 
-            // Check the lander's angle is within 5 degrees of vertical
+            //  within 5 degrees of vertical
             float angleDegrees = MathHelper.ToDegrees(m_landerRotation) % 360;
-            if (angleDegrees < 0) angleDegrees += 360; // Normalize angle to 0-360 range
+            if (angleDegrees < 0) angleDegrees += 360; // Normalize angle 
             bool isAngleSafe = angleDegrees <= 5 || angleDegrees >= 355;
 
-            // Checks for vertical speed remain the same...
+
 
             return isInSafeZone && isSpeedSafe && isAngleSafe;
         }
 
         private HighScore CalculateScore()
         {
-            
-            int fuelRemaining = m_fuel / 3 ;
-            return new HighScore(fuelRemaining);
+
+            int totalFuelRemaining = (fuelRemainingLevel1 + fuelRemainingLevel2 );
+            return new HighScore(totalFuelRemaining);
         }
 
         private void SaveHighScore(HighScore highScore)
@@ -784,11 +792,10 @@ namespace CS5410
         private void DrawLine(SpriteBatch spriteBatch, Vector2 start, Vector2 end, Color color, int thickness)
         {
             Vector2 edge = end - start;
-            // Calculate the angle to rotate the line
             float angle = (float)Math.Atan2(edge.Y, edge.X);
 
             spriteBatch.Draw(m_pixel,
-                new Rectangle( // Define the rectangle
+                new Rectangle( 
                     (int)start.X,
                     (int)start.Y,
                     (int)edge.Length(), // Length of the line
@@ -796,7 +803,7 @@ namespace CS5410
                 null,
                 color,
                 angle, // Rotation angle
-                new Vector2(0, 0), // Origin within the line, set to (0,0) as we're rotating around the start point
+                new Vector2(0, 0),
                 SpriteEffects.None,
                 0);
         }

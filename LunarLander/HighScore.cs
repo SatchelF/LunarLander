@@ -8,7 +8,7 @@ public class HighScore
     public int FuelRemaining { get; set; }
 
     [DataMember]
-    public DateTime Date { get; set; } // Added date field
+    public DateTime Date { get; set; } 
 
     public HighScore(int fuelRemaining)
     {
