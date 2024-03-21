@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.IsolatedStorage;
+using System.Linq;
 using System.Runtime.Serialization.Json;
 
 namespace CS5410
@@ -62,6 +63,7 @@ namespace CS5410
             keyboardInput.Update(gameTime); // Update keyboard input system
 
             var keyboardState = Keyboard.GetState();
+
             if (keyboardState.IsKeyDown(Keys.Escape) && currentState == SettingsState.Viewing)
             {
                 return GameStateEnum.MainMenu;
@@ -70,12 +72,11 @@ namespace CS5410
             if (currentState == SettingsState.Changing)
             {
                 var keys = keyboardState.GetPressedKeys();
-
-                // Assuming that one key is pressed at a time for changing controls
                 if (keys.Length > 0)
                 {
                     var key = keys[0];
-                    if (key != Keys.Up && key != Keys.Down && key != Keys.Enter && key != Keys.Escape)
+                    // Exclude the Enter key, Up, Down, and Escape from being assignable
+                    if (key != Keys.Enter && key != Keys.Escape)
                     {
                         // Update the key bindings both locally and in gameSettings
                         keyBindings[changingControl] = key;
@@ -89,12 +90,30 @@ namespace CS5410
                     }
                 }
             }
+            else if (currentState == SettingsState.Viewing)
+            {
+                if (keyboardState.IsKeyDown(Keys.Up) && oldState.IsKeyUp(Keys.Up))
+                {
+                    NavigateUp(gameTime, 0);  // Now correctly navigates up the list
+                }
+                else if (keyboardState.IsKeyDown(Keys.Down) && oldState.IsKeyUp(Keys.Down))
+                {
+                    NavigateDown(gameTime, 0);  // Now correctly navigates down the list
+                }
 
+
+            }
+
+            oldState = keyboardState; // Remember the old keyboard state for the next frame
             return GameStateEnum.Settings;
         }
 
 
-        private void NavigateUp(GameTime gameTime, float value)
+
+
+
+
+        private void NavigateDown(GameTime gameTime, float value)
         {
             if (currentState == SettingsState.Viewing)
             {
@@ -103,7 +122,7 @@ namespace CS5410
             }
         }
 
-        private void NavigateDown(GameTime gameTime, float value)
+        private void NavigateUp(GameTime gameTime, float value)
         {
             if (currentState == SettingsState.Viewing)
             {
@@ -111,6 +130,7 @@ namespace CS5410
                 if (selectedControlIndex >= controlNames.Count) selectedControlIndex = 0;
             }
         }
+
 
         private void SelectControl(GameTime gameTime, float value)
         {
@@ -195,8 +215,7 @@ namespace CS5410
                     }
                     catch (Exception ex)
                     {
-                        // Handle exceptions (e.g., log the error or display a message to the user)
-                        Debug.WriteLine("Error loading settings: " + ex.Message);
+                        return new GameSettings(); // Default settings if loading fails
                     }
                 }
             }
