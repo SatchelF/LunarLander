@@ -42,16 +42,46 @@ namespace CS5410
             Vector2 thrustStartPosition = landerCenter + thrustOffset;
 
             Color[] particleColors = new Color[] { Color.Red, Color.Orange, Color.Yellow };
+
+            // Define points of a triangle shape
+            Vector2[] trianglePoints = new Vector2[]
+            {
+        new Vector2(-0.5f, 1), // Adjusted points relative to the lander center
+        new Vector2(0.5f, 1),
+        new Vector2(0, 0)
+            };
+
+            float triangleScale = 5.0f; // Scale factor for the triangle
+
+            // Scale the triangle points
+            for (int i = 0; i < trianglePoints.Length; i++)
+            {
+                trianglePoints[i] *= triangleScale;
+            }
+
             // Now create particles using the calculated start position
-            for (int i = 0; i < 5; i++) // Generate a few particles each frame
+            for (int i = 0; i < 15; i++) // Generate a few particles each frame
             {
                 float size = (float)m_random.nextGaussian(m_sizeMean, m_sizeStdDev);
-                size *= 4; // Double the size for bigger particles
+                size *= 4;
 
                 Color initialColor = particleColors[m_random.Next(particleColors.Length)];
+
+                // Choose a random point from the triangle and slightly randomize the direction towards it
+                Vector2 randomPoint = thrustStartPosition + trianglePoints[m_random.Next(trianglePoints.Length)];
+                Vector2 targetDirection = randomPoint - thrustStartPosition;
+
+                // Add small random variation to the direction
+                float angleVariation = MathHelper.ToRadians(10); // Adjust this value to control the spread
+                float randomAngle = (float)(m_random.NextDouble() * angleVariation - angleVariation / 2);
+                targetDirection = Vector2.Transform(targetDirection, Matrix.CreateRotationZ(randomAngle));
+
+                // Invert the Y component to make particles expand downwards
+                targetDirection.Y *= 1;
+
                 var particle = new Particle(
                     thrustStartPosition,
-                    direction + m_random.nextCircleVector() * 0.2f, // Slightly randomize direction
+                    direction + targetDirection * 0.2f, // Slightly randomize direction
                     (float)m_random.nextGaussian(m_speedMean, m_speedStDev) * 0.5f, // Thrust particles are slower
                     new Vector2(size, size), // Use the new, larger size
                     TimeSpan.FromMilliseconds(m_random.nextGaussian(m_lifetimeMean / 2, m_lifetimeStdDev / 2)),
@@ -60,6 +90,10 @@ namespace CS5410
                 m_particles.Add(particle.name, particle);
             }
         }
+
+
+
+
 
         public void ShipCrash(Vector2 position)
         {

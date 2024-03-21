@@ -46,7 +46,7 @@ namespace CS5410
 
         }
 
-        
+
 
         public override GameStateEnum processInput(GameTime gameTime)
         {
@@ -62,7 +62,7 @@ namespace CS5410
 
             if (currentState == SettingsState.Changing)
             {
-                
+
                 var keys = keyboardState.GetPressedKeys();
 
 
@@ -111,16 +111,16 @@ namespace CS5410
                 currentState = SettingsState.Changing;
                 changingControl = controlNames[selectedControlIndex];
             }
-           
+
         }
 
-        
+
 
 
         public override void render(GameTime gameTime)
         {
             m_spriteBatch.Begin();
-            int totalTextHeight = controlNames.Count * 100; 
+            int totalTextHeight = controlNames.Count * 100;
             Vector2 position = new Vector2(m_graphics.PreferredBackBufferWidth / 3, (m_graphics.PreferredBackBufferHeight - totalTextHeight) / 2);
 
 
@@ -145,7 +145,7 @@ namespace CS5410
             }
 
             Vector2 stringSize = m_font.MeasureString(MESSAGE);
-            m_spriteBatch.DrawString(m_font2, MESSAGE, new Vector2(m_graphics.PreferredBackBufferWidth  - stringSize.X / 2, m_graphics.PreferredBackBufferHeight - 100), Color.Yellow);
+            m_spriteBatch.DrawString(m_font2, MESSAGE, new Vector2(m_graphics.PreferredBackBufferWidth - stringSize.X / 2, m_graphics.PreferredBackBufferHeight - 100), Color.Yellow);
 
             m_spriteBatch.End();
         }
