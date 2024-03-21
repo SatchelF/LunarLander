@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.IO.IsolatedStorage;
 using System.IO;
 using System.Runtime.Serialization.Json;
+using System.Linq;
+using System;
 
 namespace CS5410
 {
@@ -36,16 +38,20 @@ namespace CS5410
             // Load high scores
             List<HighScore> highScores = LoadHighScores();
 
-            Vector2 position = new Vector2(500, 100); // Starting position for high scores list
+            Vector2 position = new Vector2(600, 100); // Starting position for high scores list
 
             // Display the message
             m_spriteBatch.DrawString(m_font, MESSAGE, new Vector2(m_graphics.PreferredBackBufferWidth / 2 - m_font.MeasureString(MESSAGE).X / 2, position.Y), Color.Yellow);
             position.Y += 100; // Adjust spacing as needed
 
-            // Iterate through high scores and display them
-            foreach (var score in highScores)
+            List<HighScore> sortedHighScores = highScores.OrderByDescending(score => score.FuelRemaining).ToList();
+
+            // Display only the top 5 high scores
+            int numberOfScoresToDisplay = Math.Min(sortedHighScores.Count, 5);
+            for (int i = 0; i < numberOfScoresToDisplay; i++)
             {
-                string scoreText = $"Score: {score.FuelRemaining} Date: {score.Date}";
+                var score = sortedHighScores[i];
+                string scoreText = $"{i + 1}. Score: {score.FuelRemaining} Date: {score.Date}";
                 m_spriteBatch.DrawString(m_font, scoreText, position, Color.Goldenrod);
                 position.Y += 50; // Increment Y position for the next score
             }
