@@ -5,6 +5,10 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.IO.IsolatedStorage;
+using System.Runtime.Serialization.Json;
 
 namespace CS5410
 {
@@ -21,16 +25,21 @@ namespace CS5410
         private int selectedControlIndex = 0;
         private KeyboardInput keyboardInput;
         private KeyboardState oldState;
+        private GameSettings gameSettings;
+
 
 
         public SettingsView()
         {
-            keyBindings = new Dictionary<string, Keys>
+            string settingsFilePath = "gameSettings.json";
+            gameSettings = LoadSettings(settingsFilePath);
+
+            // Initialize keyBindings based on loaded settings
+            keyBindings = new Dictionary<string, Keys>();
+            foreach (var pair in gameSettings.KeyBindings)
             {
-                { "Rotate Left", Keys.Left },
-                { "Rotate Right", Keys.Right },
-                { "Thrust", Keys.Up }
-            };
+                keyBindings[pair.Key] = (Keys)Enum.Parse(typeof(Keys), pair.Value);
+            }
 
             controlNames = new List<string>(keyBindings.Keys);
             keyboardInput = new KeyboardInput();
@@ -52,39 +61,38 @@ namespace CS5410
         {
             keyboardInput.Update(gameTime); // Update keyboard input system
 
-
             var keyboardState = Keyboard.GetState();
-            if (keyboardState.IsKeyDown(Keys.Escape))
+            if (keyboardState.IsKeyDown(Keys.Escape) && currentState == SettingsState.Viewing)
             {
                 return GameStateEnum.MainMenu;
             }
 
-
             if (currentState == SettingsState.Changing)
             {
-
                 var keys = keyboardState.GetPressedKeys();
 
-
-                if (keyboardState.IsKeyDown(Keys.Escape))
+                // Assuming that one key is pressed at a time for changing controls
+                if (keys.Length > 0)
                 {
-                    return GameStateEnum.MainMenu;
-                }
-
-                foreach (var key in keys)
-                {
+                    var key = keys[0];
                     if (key != Keys.Up && key != Keys.Down && key != Keys.Enter && key != Keys.Escape)
                     {
+                        // Update the key bindings both locally and in gameSettings
                         keyBindings[changingControl] = key;
+                        gameSettings.KeyBindings[changingControl] = key.ToString();
+
+                        // Save the updated settings
+                        SaveSettings("gameSettings.json");
+
                         currentState = SettingsState.Viewing;
                         changingControl = "";
-                        break;
                     }
                 }
             }
 
             return GameStateEnum.Settings;
         }
+
 
         private void NavigateUp(GameTime gameTime, float value)
         {
@@ -149,6 +157,54 @@ namespace CS5410
 
             m_spriteBatch.End();
         }
+
+        public void SaveSettings(string fileName)
+        {
+            using (IsolatedStorageFile isolatedStorage = IsolatedStorageFile.GetUserStoreForApplication())
+            {
+                try
+                {
+                    using (IsolatedStorageFileStream stream = new IsolatedStorageFileStream(fileName, FileMode.Create, isolatedStorage))
+                    {
+                        DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(GameSettings));
+                        serializer.WriteObject(stream, gameSettings);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Handle exceptions (e.g., log the error or display a message to the user)
+                    Debug.WriteLine("Error saving settings: " + ex.Message);
+                }
+            }
+        }
+
+
+        public static GameSettings LoadSettings(string fileName)
+        {
+            using (IsolatedStorageFile isolatedStorage = IsolatedStorageFile.GetUserStoreForApplication())
+            {
+                if (isolatedStorage.FileExists(fileName))
+                {
+                    try
+                    {
+                        using (IsolatedStorageFileStream stream = new IsolatedStorageFileStream(fileName, FileMode.Open, isolatedStorage))
+                        {
+                            DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(GameSettings));
+                            return (GameSettings)serializer.ReadObject(stream);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Handle exceptions (e.g., log the error or display a message to the user)
+                        Debug.WriteLine("Error loading settings: " + ex.Message);
+                    }
+                }
+            }
+            return new GameSettings(); // Return default settings if the file does not exist or an error occurred
+        }
+
+
+
 
         public override void update(GameTime gameTime)
         {

@@ -19,7 +19,7 @@ namespace CS5410
         #region Fields
 
         private SpriteFont m_font;
-        private bool isThrustKeyPressed = false;
+        private Keys thrustKey;
         private SpriteFont m_Bigfont;
         private Texture2D m_background;
         private Texture2D m_lunarLander;
@@ -65,6 +65,8 @@ namespace CS5410
         private ParticleSystemRenderer thrustRenderer;
         private ParticleSystemRenderer explosionRenderer;
         private bool scoreSaved = false;
+        private bool isThrustKeyPressed = false;
+
 
         #endregion
 
@@ -100,10 +102,21 @@ namespace CS5410
 
         private void InitializeNewGame()
         {
+            string settingsFilePath = "gameSettings.json";
+            GameSettings settings = SettingsView.LoadSettings(settingsFilePath);
+
+            // Create the KeyboardInput instance
             keyboardInput = new KeyboardInput();
-            keyboardInput.registerCommand(Keys.Up, false, onThrust);
-            keyboardInput.registerCommand(Keys.Left, false, onRotateLeft);
-            keyboardInput.registerCommand(Keys.Right, false, onRotateRight);
+
+            // Now use the loaded key bindings to register the commands
+            Keys rotateLeftKey = (Keys)Enum.Parse(typeof(Keys), settings.KeyBindings["Rotate Left"]);
+            Keys rotateRightKey = (Keys)Enum.Parse(typeof(Keys), settings.KeyBindings["Rotate Right"]);
+            thrustKey = (Keys)Enum.Parse(typeof(Keys), settings.KeyBindings["Thrust"]);
+
+            // Register the commands using the keys from settings
+            keyboardInput.registerCommand(thrustKey, false, onThrust);
+            keyboardInput.registerCommand(rotateLeftKey, false, onRotateLeft);
+            keyboardInput.registerCommand(rotateRightKey, false, onRotateRight);
             screenHeight = m_graphics.PreferredBackBufferHeight;
             screenWidth = m_graphics.PreferredBackBufferWidth;
             int maxY = screenHeight / 5;
@@ -134,13 +147,12 @@ namespace CS5410
 
         public override GameStateEnum processInput(GameTime gameTime)
         {
-
             keyboardInput.Update(gameTime);
 
             var keyboardState = Keyboard.GetState();
 
-            isThrustKeyPressed = keyboardState.IsKeyDown(Keys.Up);
-
+            // Update the flag based on the current key state
+            isThrustKeyPressed = keyboardState.IsKeyDown(thrustKey);
 
             if (keyboardState.IsKeyDown(Keys.Escape))
             {
@@ -152,8 +164,9 @@ namespace CS5410
                 return handleGameOver();
             }
 
+            // The actual thrusting logic will be handled in the onThrust method which is called by keyboardInput.Update(gameTime) if the thrust key is down
 
-            return GameStateEnum.GamePlay; 
+            return GameStateEnum.GamePlay;
         }
 
         private GameStateEnum handleEscapeKey()
@@ -185,13 +198,18 @@ namespace CS5410
 
         private void onThrust(GameTime gameTime, float value)
         {
-            if (!successfulLanding)
+
+
+            if (isThrustKeyPressed && m_fuel > 0 && !successfulLanding)
             {
 
-                if (m_fuel > 0)
-                {
 
-                    m_fuel -= 1;
+                if (thrustSoundInstance.State != SoundState.Playing)
+                {
+                    thrustSoundInstance.Play();
+                }
+
+                m_fuel -= 1;
                     // thrust direction based on the lander's current rotation
                     Vector2 thrustDirection = new Vector2(-(float)Math.Sin(m_landerRotation), (float)Math.Cos(m_landerRotation));
 
@@ -213,9 +231,17 @@ namespace CS5410
                     {
                         fuelRemainingLevel2 = m_fuel / 3;
                     }
+          }
+            else
+            {
+                // Stop the thrust sound if it is playing and thrusting should not occur
+                if (thrustSoundInstance.State == SoundState.Playing)
+                {
+                    thrustSoundInstance.Stop();
                 }
-
             }
+
+
         }
 
 
@@ -243,20 +269,9 @@ namespace CS5410
         {
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-            if (isThrustKeyPressed && m_fuel > 0)
+            if (!isThrustKeyPressed)
             {
-                if (thrustSoundInstance.State != SoundState.Playing)
-                {
-                    thrustSoundInstance.Play();
-                }
-
-            }
-            else
-            {
-                if (thrustSoundInstance.State == SoundState.Playing)
-                {
-                    thrustSoundInstance.Stop();
-                }
+                thrustSoundInstance.Stop();
             }
 
             // Update the lander's position

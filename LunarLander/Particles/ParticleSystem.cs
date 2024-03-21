@@ -92,7 +92,7 @@ namespace CS5410
         public void ShipCrash(Vector2 position)
         {
             Color[] particleColors = { Color.Red, Color.Orange, Color.Yellow };
-            for (int i = 0; i < 200; i++) 
+            for (int i = 0; i < 500; i++) 
             {
                 float size = (float)m_random.nextGaussian(m_sizeMean, m_sizeStdDev);
                 Color initialColor = particleColors[m_random.Next(particleColors.Length)];
@@ -101,7 +101,7 @@ namespace CS5410
                 var particle = new Particle(
                     position,
                     direction, // Less spread out direction
-                    (float)m_random.nextGaussian(m_speedMean, m_speedStDev) * 0.5f, // Slower speed for a more condensed effect
+                    (float)m_random.nextGaussian(m_speedMean, m_speedStDev) * 0.3f, // Slower speed for a more condensed effect
                     new Vector2(size, size),
                     TimeSpan.FromMilliseconds(m_random.nextGaussian(m_lifetimeMean, m_lifetimeStdDev)),
                     initialColor
